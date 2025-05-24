@@ -21,6 +21,12 @@ h1 {
 .grid {
   display: grid;
   gap: 1px;
+  grid-template-columns: auto repeat(4, 1fr);
+  grid-template-rows: auto repeat(4, 1fr);
+}
+
+.row {
+  display: contents;
 }
 
 .header-cell {
