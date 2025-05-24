@@ -35,15 +35,19 @@ function App() {
   const ySize = Math.pow(2, yVars);
   
   const size = xSize * ySize;
-
-  const board: Board = makeBoard(xSize, ySize);
   
-  const [game, setGame] = useState({
+  const initialGame = {
     phase: placePhase as Phase,
     currentTurn: 1 as Player,
     moveCounter: 0,
-    board,
-  });
+    board: makeBoard(xSize, ySize)
+  };
+
+  const [game, setGame] = useState(initialGame);
+
+  const resetGame = () => {
+    setGame(initialGame);
+  }
 
   const updateGame = (game: Game, board: Board) => {
     const newGame: Game = {
@@ -90,14 +94,15 @@ function App() {
       <h1>King of K-Maps</h1>
       <div id="info">
         Variables: {numVars} (x: {xVars}, y: {yVars})<br />
-        Grid Size: {size} ({xSize} x bits (2^{xVars}) * {ySize} y bits (2^{yVars}))<br />
+        Grid Size: {size} ({xSize} x states (2^{xVars}) * {ySize} y states (2^{yVars}))<br />
         <br />
         Current Phase: {game.phase}<br />
         Current Turn: Player {game.currentTurn}<br />
         Move Counter: {game.moveCounter}
       </div>
       <div id="debug-controls">
-        <button onClick={randomizeBoard}>Randomize</button>
+        <button id="resetGame" onClick={resetGame}>Reset</button>
+        <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
       </div>
       <div id="board">
         <Grid gridId={0} game={game} cellClick={makeMove} />
