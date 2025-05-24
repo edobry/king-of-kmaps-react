@@ -5,9 +5,19 @@ type Unset = undefined;
 type Player = 0 | 1;
 type CellValue = Player | Unset;
 type Board = CellValue[][];
+
+const placePhase = "Place";
+const scorePhase = "Score";
+
+type PlacePhase = typeof placePhase;
+type ScorePhase = typeof scorePhase;
+type Phase = PlacePhase | ScorePhase;
+
 type Game = {
   currentTurn: Player;
   board: Board;
+  phase: Phase;
+  moveCounter: number;
 }
 
 function App() {
@@ -25,25 +35,35 @@ function App() {
   );
   
   const [game, setGame] = useState({
+    phase: placePhase as Phase,
     currentTurn: 1 as Player,
-    board
+    moveCounter: 0,
+    board,
   });
 
   const makeMove = (gridId: number, xPos: number, yPos: number) => {
-    const xSize = game.board[0].length / 2;
-    const adjustedX = (gridId * xSize) + xPos;
+    setGame((game) => {
+      const xSize = game.board[0].length / 2;
+      const adjustedX = (gridId * xSize) + xPos;
 
-    const newBoard: Board = game.board.map((row, y) =>
-      row.map((cell, x) =>
-        x === adjustedX && y === yPos ? game.currentTurn : cell
-      )
-    );
+      if(game.board[yPos][adjustedX] !== undefined) {
+        return game;
+      }
 
-    setGame((game) => ({
-      ...game,
-      currentTurn: game.currentTurn === 1 ? 0 : 1,
-      board: newBoard
-    }));
+      const newBoard: Board = structuredClone(game.board);
+      newBoard[yPos][adjustedX] = game.currentTurn;
+
+      const newGame: Game = {
+        ...game,
+        currentTurn: game.currentTurn === 1 ? 0 : 1,
+        board: newBoard
+      };
+      
+      newGame.moveCounter = game.moveCounter + 1;
+      newGame.phase = game.moveCounter == 32 ? scorePhase as ScorePhase : game.phase;
+      
+      return newGame;
+    });
   };
 
   return (
@@ -51,7 +71,11 @@ function App() {
       <h1>King of K-Maps</h1>
       <div id="info">
         Variables: {numVars} (x: {xVars}, y: {yVars})<br />
-        Grid Size: {size} ({xSize} x bits (2^{xVars}) * {ySize} y bits (2^{yVars}))
+        Grid Size: {size} ({xSize} x bits (2^{xVars}) * {ySize} y bits (2^{yVars}))<br />
+        <br />
+        Current Phase: {game.phase}<br />
+        Current Turn: Player {game.currentTurn}<br />
+        Move Counter: {game.moveCounter}
       </div>
       <div id="board">
         <Grid gridId={0} game={game} cellClick={makeMove} />
