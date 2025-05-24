@@ -20,6 +20,12 @@ type Game = {
   moveCounter: number;
 }
 
+const makeBoard = (xSize: number, ySize: number, getValue: () => CellValue = () => undefined) => {
+  return Array.from({ length: ySize }, () =>
+    Array.from({ length: xSize }, () => getValue())
+  );
+}
+
 function App() {
   const numVars = 5;
   const xVars = Math.ceil(numVars / 2);
@@ -30,9 +36,7 @@ function App() {
   
   const size = xSize * ySize;
 
-  const board: Board = Array.from({ length: ySize }, () =>
-    Array.from({ length: xSize }, () => undefined)
-  );
+  const board: Board = makeBoard(xSize, ySize);
   
   const [game, setGame] = useState({
     phase: placePhase as Phase,
@@ -40,6 +44,18 @@ function App() {
     moveCounter: 0,
     board,
   });
+
+  const updateGame = (game: Game, board: Board) => {
+    const newGame: Game = {
+      ...game,
+      board,
+    };
+    
+    newGame.moveCounter = game.moveCounter + 1;
+    newGame.phase = newGame.moveCounter == 32 ? scorePhase as ScorePhase : game.phase;
+    
+    return newGame;
+  }
 
   const makeMove = (gridId: number, xPos: number, yPos: number) => {
     setGame((game) => {
@@ -53,18 +69,21 @@ function App() {
       const newBoard: Board = structuredClone(game.board);
       newBoard[yPos][adjustedX] = game.currentTurn;
 
-      const newGame: Game = {
+      return updateGame({
         ...game,
         currentTurn: game.currentTurn === 1 ? 0 : 1,
-        board: newBoard
-      };
-      
-      newGame.moveCounter = game.moveCounter + 1;
-      newGame.phase = game.moveCounter == 32 ? scorePhase as ScorePhase : game.phase;
-      
-      return newGame;
+      }, newBoard);
     });
   };
+
+  const randomizeBoard = () => {
+    setGame((game) => {
+      return updateGame({
+        ...game,
+        moveCounter: 31
+      }, makeBoard(xSize, ySize, () => Math.random() < 0.5 ? 0 : 1));
+    });
+  }
 
   return (
     <>
@@ -76,6 +95,9 @@ function App() {
         Current Phase: {game.phase}<br />
         Current Turn: Player {game.currentTurn}<br />
         Move Counter: {game.moveCounter}
+      </div>
+      <div id="debug-controls">
+        <button onClick={randomizeBoard}>Randomize</button>
       </div>
       <div id="board">
         <Grid gridId={0} game={game} cellClick={makeMove} />
