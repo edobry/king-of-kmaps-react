@@ -165,7 +165,7 @@ function Grid({ gridId, game, cellClick }: { gridId: number, game: Game, cellCli
           
           {row.map((cell, x) => {
             const isSelected = game.scoring?.selected.has(makeCellId(gridId, x, y));
-            const className = `cell ${isSelected ? "selected" : ""}`;
+            const className = `cell ${isSelected ? "selected" : ""} ${game.phase === scorePhase && cell === game.currentTurn ? "owned" : ""}`;
 
             return (
               <div key={`grid-${gridId}-${x},${y}`} className={className} onClick={() => cellClick(gridId, x, y)}>
