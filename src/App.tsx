@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import './App.css'
-import Grid from './Grid';
+import Grid from './Grid.tsx';
 import { type Game, placePhase, scorePhase, type Phase, type ScorePhase, type Player, type Board, makeCellId, makeBoard, makeRandomBoard } from './game.ts';
 
 function App() {

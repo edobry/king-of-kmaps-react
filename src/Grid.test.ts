@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { placePhase, type Game, type CellValue, type Board, type Player, scorePhase, makeBoard } from "./game";
+import { placePhase, type Game, type Board, type Player, scorePhase, makeBoard } from "./game";
 import { getCellClasses } from "./grid";
 
 const testBoard = [
@@ -20,7 +20,7 @@ test("getCellClasses: place phase, empty cell is selectable", () => {
         moveCounter: 0,
     };
 
-    const classes = getCellClasses(game, undefined as CellValue, 0, 0, 0);
+    const classes = getCellClasses(game, undefined, 0, 0, 0);
     expect(classes).toContain("selectable");
 });
 
@@ -32,7 +32,7 @@ test("getCellClasses: place phase, filled cell is not selectable", () => {
         moveCounter: 0,
     };
 
-    const classes = getCellClasses(game, 1 as CellValue, 0, 0, 0);
+    const classes = getCellClasses(game, 1, 0, 0, 0);
     expect(classes).not.toContain("selectable");
 });
 
@@ -47,8 +47,20 @@ test("getCellClasses: score phase, selected cell is selected", () => {
         },
     };
 
-    const classes = getCellClasses(game, 1 as CellValue, 0, 0, 0);
+    const classes = getCellClasses(game, 1, 0, 0, 0);
     expect(classes).toContain("selected");
+});
+
+test("getCellClasses: score phase, unselected cell is not selected", () => {
+    const game: Game = {
+        phase: scorePhase,
+        currentTurn: 1 as Player,
+        board: testBoard,
+        moveCounter: 0
+    };
+
+    const classes = getCellClasses(game, 1, 0, 0, 0);
+    expect(classes).not.toContain("selected");
 });
 
 test("getCellClasses: score phase, owned cell is selectable", () => {
@@ -62,6 +74,18 @@ test("getCellClasses: score phase, owned cell is selectable", () => {
         },
     };
 
-    const classes = getCellClasses(game, 1 as CellValue, 0, 0, 0);
+    const classes = getCellClasses(game, 1, 0, 0, 0);
     expect(classes).toContain("selectable");
+});
+
+test("getCellClasses: score phase, unowned cell is not selectable", () => {
+    const game: Game = {
+        phase: scorePhase,
+        currentTurn: 0,
+        board: emptyBoard,
+        moveCounter: 0
+    };
+
+    const classes = getCellClasses(game, 1, 0, 0, 0);
+    expect(classes).not.toContain("selectable");
 });
