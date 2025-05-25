@@ -56,15 +56,19 @@ h1 {
   user-select: none;
 }
 
-.cell:hover {
+.cell.selectable:not(.owned):hover {
   background-color: rgb(162, 162, 162);
 }
+/* 
+.cell:hover:not(.selectable):not(.selected):not(.owned) {
+  background-color: rgb(162, 162, 162);
+} */
 
 .cell.owned:hover:not(.selected) {
   background-color: rgb(163, 163, 163);
 }
 
-.cell.selected.owned:hover {
+.cell.selected.selectable:hover {
   background-color: rgb(121, 121, 121);
 }
 

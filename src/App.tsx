@@ -1,39 +1,7 @@
 import { useState } from 'react';
 import './App.css'
-
-type Unset = undefined;
-type Player = 0 | 1;
-type CellValue = Player | Unset;
-type Board = CellValue[][][];
-
-const placePhase = "Place";
-const scorePhase = "Score";
-
-type PlacePhase = typeof placePhase;
-type ScorePhase = typeof scorePhase;
-type Phase = PlacePhase | ScorePhase;
-
-type ScoringState = {
-  selected: Set<string>;
-}
-
-type Game = {
-  currentTurn: Player;
-  board: Board;
-  phase: Phase;
-  moveCounter: number;
-  scoring?: ScoringState;
-}
-
-const makeBoard = (numGrids: number, xSize: number, ySize: number, getValue: () => CellValue = () => undefined) => {
-  return Array.from({ length: numGrids }, () =>
-    Array.from({ length: ySize }, () =>
-      Array.from({ length: xSize }, () => getValue())
-    )
-  );
-}
-
-const makeCellId = (gridId: number, xPos: number, yPos: number) => `${gridId},${xPos},${yPos}`;
+import Grid from './Grid';
+import { type Game, placePhase, scorePhase, type Phase, type ScorePhase, type Player, type Board, makeCellId, makeBoard, makeRandomBoard } from './game.ts';
 
 function App() {
   const numVars = 5;
@@ -78,7 +46,7 @@ function App() {
       return updateGame({
         ...game,
         moveCounter: 31
-      }, makeBoard(numGrids, xSize, ySize, () => Math.random() < 0.5 ? 0 : 1));
+      }, makeRandomBoard(numGrids, xSize, ySize));
     });
   }
 
@@ -117,7 +85,7 @@ function App() {
         )) {
           return game;
         }
-        
+
         game.scoring.selected.add(makeCellId(gridId, xPos, yPos));
       }
 
@@ -157,36 +125,6 @@ function App() {
         ))}
       </div>
     </>
-  )
-}
-
-function Grid({ gridId, game, cellClick }: { gridId: number, game: Game, cellClick: (gridId: number, x: number, y: number) => void }) {
-  return (
-    <div id={`grid-${gridId}`} className="grid">
-      <div className="corner-cell"></div>
-      {game.board[gridId][0].map((_, x) => (
-        <div className="header-cell col-header" key={`grid-${gridId}-col-${x}`}>
-          {x}
-        </div>
-      ))}
-      
-      {game.board[gridId].map((row, y) => (
-        <div className="row" key={`grid-${gridId}-row-${y}`}>
-          <div className="header-cell row-header">{y}</div>
-          
-          {row.map((cell, x) => {
-            const isSelected = game.scoring?.selected.has(makeCellId(gridId, x, y));
-            const className = `cell ${isSelected ? "selected" : ""} ${game.phase === scorePhase && cell === game.currentTurn ? "owned" : ""}`;
-
-            return (
-              <div key={`grid-${gridId}-${x},${y}`} className={className} onClick={() => cellClick(gridId, x, y)}>
-                {cell}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
   )
 }
 
