@@ -107,6 +107,17 @@ function App() {
       if(game.scoring.selected.has(makeCellId(gridId, xPos, yPos))) {
         game.scoring.selected.delete(makeCellId(gridId, xPos, yPos));
       } else {
+        if(game.scoring.selected.size != 0 && !(
+          game.scoring.selected.has(makeCellId(gridId + 1, xPos, yPos)) ||
+          game.scoring.selected.has(makeCellId(gridId - 1, xPos, yPos)) ||
+          game.scoring.selected.has(makeCellId(gridId, xPos + 1, yPos)) ||
+          game.scoring.selected.has(makeCellId(gridId, xPos - 1, yPos)) ||
+          game.scoring.selected.has(makeCellId(gridId, xPos, yPos + 1)) ||
+          game.scoring.selected.has(makeCellId(gridId, xPos, yPos - 1))
+        )) {
+          return game;
+        }
+        
         game.scoring.selected.add(makeCellId(gridId, xPos, yPos));
       }
 
