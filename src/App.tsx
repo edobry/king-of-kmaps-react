@@ -4,7 +4,7 @@ import './App.css'
 type Unset = undefined;
 type Player = 0 | 1;
 type CellValue = Player | Unset;
-type Board = CellValue[][];
+type Board = CellValue[][][];
 
 const placePhase = "Place";
 const scorePhase = "Score";
@@ -25,9 +25,11 @@ type Game = {
   scoring?: ScoringState;
 }
 
-const makeBoard = (xSize: number, ySize: number, getValue: () => CellValue = () => undefined) => {
-  return Array.from({ length: ySize }, () =>
-    Array.from({ length: xSize }, () => getValue())
+const makeBoard = (numGrids: number, xSize: number, ySize: number, getValue: () => CellValue = () => undefined) => {
+  return Array.from({ length: numGrids }, () =>
+    Array.from({ length: ySize }, () =>
+      Array.from({ length: xSize }, () => getValue())
+    )
   );
 }
 
@@ -35,10 +37,12 @@ const makeCellId = (gridId: number, xPos: number, yPos: number) => `${gridId},${
 
 function App() {
   const numVars = 5;
+  // TODO: Make this dynamic
+  const numGrids = 2;
   const xVars = Math.ceil(numVars / 2);
   const yVars = numVars - xVars;
 
-  const xSize = Math.pow(2, xVars);
+  const xSize = Math.pow(2, xVars) / 2;
   const ySize = Math.pow(2, yVars);
   
   const size = xSize * ySize;
@@ -47,7 +51,7 @@ function App() {
     phase: placePhase as Phase,
     currentTurn: 1 as Player,
     moveCounter: 0,
-    board: makeBoard(xSize, ySize)
+    board: makeBoard(numGrids, xSize, ySize)
   };
 
   const [game, setGame] = useState(initialGame);
@@ -74,17 +78,17 @@ function App() {
       return updateGame({
         ...game,
         moveCounter: 31
-      }, makeBoard(xSize, ySize, () => Math.random() < 0.5 ? 0 : 1));
+      }, makeBoard(numGrids, xSize, ySize, () => Math.random() < 0.5 ? 0 : 1));
     });
   }
 
-  const makeMove = (game: Game, xPos: number, yPos: number) => {
-      if(game.board[yPos][xPos] !== undefined) {
+  const makeMove = (game: Game, gridId: number, xPos: number, yPos: number) => {
+      if(game.board[gridId][yPos][xPos] !== undefined) {
         return game;
       }
 
       const newBoard: Board = structuredClone(game.board);
-      newBoard[yPos][xPos] = game.currentTurn;
+      newBoard[gridId][yPos][xPos] = game.currentTurn;
 
       game.currentTurn = game.currentTurn === 1 ? 0 : 1
 
@@ -95,6 +99,10 @@ function App() {
       game.scoring = game.scoring ? structuredClone(game.scoring) : {
         selected: new Set()
       };
+
+      if(game.board[gridId][yPos][xPos] !== game.currentTurn) {
+        return game;
+      }
 
       if(game.scoring.selected.has(makeCellId(gridId, xPos, yPos))) {
         game.scoring.selected.delete(makeCellId(gridId, xPos, yPos));
@@ -107,13 +115,10 @@ function App() {
 
   const cellClick = (gridId: number, xPos: number, yPos: number) => {
     setGame((game) => {
-      const xSize = game.board[0].length / 2;
-      const adjustedX = (gridId * xSize) + xPos;
-
       const newGame = structuredClone(game);
 
       return newGame.phase === placePhase
-        ? makeMove(newGame, adjustedX, yPos)
+        ? makeMove(newGame, gridId, xPos, yPos)
         : makeSelection(newGame, gridId, xPos, yPos);
     });
   };
@@ -131,33 +136,30 @@ function App() {
       </div>
       <div id="debug-controls">
         <button id="resetGame" onClick={resetGame}>Reset</button>
-        <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
+        {game.phase === placePhase && (
+          <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
+        )}
       </div>
       <div id="board">
-        <Grid gridId={0} game={game} cellClick={cellClick} />
-        <Grid gridId={1} game={game} cellClick={cellClick} />
+        {game.board.map((_, gridId) => (
+          <Grid key={`grid-${gridId}`} gridId={gridId} game={game} cellClick={cellClick} />
+        ))}
       </div>
     </>
   )
 }
 
-const makeBoardSlice = (game: Game, gridId: number) => {
-  const xSize = game.board[0].length / 2;
-  return game.board.map((row) => row.slice(gridId * xSize, (gridId + 1) * xSize));
-}
-
 function Grid({ gridId, game, cellClick }: { gridId: number, game: Game, cellClick: (gridId: number, x: number, y: number) => void }) {
-  const gridBoard = makeBoardSlice(game, gridId);
   return (
     <div id={`grid-${gridId}`} className="grid">
       <div className="corner-cell"></div>
-      {gridBoard[0].map((_, x) => (
+      {game.board[gridId][0].map((_, x) => (
         <div className="header-cell col-header" key={`grid-${gridId}-col-${x}`}>
           {x}
         </div>
       ))}
       
-      {gridBoard.map((row, y) => (
+      {game.board[gridId].map((row, y) => (
         <div className="row" key={`grid-${gridId}-row-${y}`}>
           <div className="header-cell row-header">{y}</div>
           
