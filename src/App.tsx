@@ -13,11 +13,16 @@ type PlacePhase = typeof placePhase;
 type ScorePhase = typeof scorePhase;
 type Phase = PlacePhase | ScorePhase;
 
+type ScoringState = {
+  selected: Set<string>;
+}
+
 type Game = {
   currentTurn: Player;
   board: Board;
   phase: Phase;
   moveCounter: number;
+  scoring?: ScoringState;
 }
 
 const makeBoard = (xSize: number, ySize: number, getValue: () => CellValue = () => undefined) => {
@@ -25,6 +30,8 @@ const makeBoard = (xSize: number, ySize: number, getValue: () => CellValue = () 
     Array.from({ length: xSize }, () => getValue())
   );
 }
+
+const makeCellId = (gridId: number, xPos: number, yPos: number) => `${gridId},${xPos},${yPos}`;
 
 function App() {
   const numVars = 5;
@@ -36,7 +43,7 @@ function App() {
   
   const size = xSize * ySize;
   
-  const initialGame = {
+  const initialGame: Game = {
     phase: placePhase as Phase,
     currentTurn: 1 as Player,
     moveCounter: 0,
@@ -61,24 +68,6 @@ function App() {
     return newGame;
   }
 
-  const makeMove = (gridId: number, xPos: number, yPos: number) => {
-    setGame((game) => {
-      const xSize = game.board[0].length / 2;
-      const adjustedX = (gridId * xSize) + xPos;
-
-      if(game.board[yPos][adjustedX] !== undefined) {
-        return game;
-      }
-
-      const newBoard: Board = structuredClone(game.board);
-      newBoard[yPos][adjustedX] = game.currentTurn;
-
-      return updateGame({
-        ...game,
-        currentTurn: game.currentTurn === 1 ? 0 : 1,
-      }, newBoard);
-    });
-  };
 
   const randomizeBoard = () => {
     setGame((game) => {
@@ -89,6 +78,46 @@ function App() {
     });
   }
 
+  const makeMove = (game: Game, xPos: number, yPos: number) => {
+      if(game.board[yPos][xPos] !== undefined) {
+        return game;
+      }
+
+      const newBoard: Board = structuredClone(game.board);
+      newBoard[yPos][xPos] = game.currentTurn;
+
+      game.currentTurn = game.currentTurn === 1 ? 0 : 1
+
+      return updateGame(game, newBoard);
+  }
+
+  const makeSelection = (game: Game, gridId: number, xPos: number, yPos: number) => {
+      game.scoring = game.scoring ? structuredClone(game.scoring) : {
+        selected: new Set()
+      };
+
+      if(game.scoring.selected.has(makeCellId(gridId, xPos, yPos))) {
+        game.scoring.selected.delete(makeCellId(gridId, xPos, yPos));
+      } else {
+        game.scoring.selected.add(makeCellId(gridId, xPos, yPos));
+      }
+
+      return game;
+  }
+
+  const cellClick = (gridId: number, xPos: number, yPos: number) => {
+    setGame((game) => {
+      const xSize = game.board[0].length / 2;
+      const adjustedX = (gridId * xSize) + xPos;
+
+      const newGame = structuredClone(game);
+
+      return newGame.phase === placePhase
+        ? makeMove(newGame, adjustedX, yPos)
+        : makeSelection(newGame, gridId, xPos, yPos);
+    });
+  };
+
   return (
     <>
       <h1>King of K-Maps</h1>
@@ -98,15 +127,15 @@ function App() {
         <br />
         Current Phase: {game.phase}<br />
         Current Turn: Player {game.currentTurn}<br />
-        Move Counter: {game.moveCounter}
+        {game.phase === placePhase ? `Move Counter: ${game.moveCounter}` : ""}
       </div>
       <div id="debug-controls">
         <button id="resetGame" onClick={resetGame}>Reset</button>
         <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
       </div>
       <div id="board">
-        <Grid gridId={0} game={game} cellClick={makeMove} />
-        <Grid gridId={1} game={game} cellClick={makeMove} />
+        <Grid gridId={0} game={game} cellClick={cellClick} />
+        <Grid gridId={1} game={game} cellClick={cellClick} />
       </div>
     </>
   )
@@ -132,11 +161,16 @@ function Grid({ gridId, game, cellClick }: { gridId: number, game: Game, cellCli
         <div className="row" key={`grid-${gridId}-row-${y}`}>
           <div className="header-cell row-header">{y}</div>
           
-          {row.map((cell, x) => (
-            <div key={`grid-${gridId}-${x},${y}`} className="cell" onClick={() => cellClick(gridId, x, y)}>
-              {cell}
-            </div>
-          ))}
+          {row.map((cell, x) => {
+            const isSelected = game.scoring?.selected.has(makeCellId(gridId, x, y));
+            const className = `cell ${isSelected ? "selected" : ""}`;
+
+            return (
+              <div key={`grid-${gridId}-${x},${y}`} className={className} onClick={() => cellClick(gridId, x, y)}>
+                {cell}
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
