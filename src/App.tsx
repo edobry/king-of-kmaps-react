@@ -100,7 +100,7 @@ function App() {
     <>
       <h1>King of K-Maps</h1>
       <div id="info">
-        Variables: {numVars} (x: {xVars.join(", ")} | y: {yVars.join(", ")} | z: {zVars.join(", ")})<br />
+        Variables: {numVars} (x = {xVars.join(", ")} | y = {yVars.join(", ")} | z = {zVars.join(", ")})<br />
         Grid Size: {size} ({xSize} x states (2^{xVars.length}) * {ySize} y states (2^{yVars.length}) * {zSize} z states (2^{zVars.length}))<br />
         <br />
         Current Phase: {game.phase}<br />

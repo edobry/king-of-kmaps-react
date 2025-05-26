@@ -17,9 +17,7 @@ export const getCellClasses = (
             classes.push(selectableClass);
         }
     } else if (game.phase === scorePhase) {
-        const isSelected = game.scoring?.selected.has(makeCellId(zPos, y, x));
-
-        if (isSelected) {
+        if (game.scoring?.selected.has(makeCellId(zPos, y, x))) {
             classes.push(selectedClass);
         }
 
