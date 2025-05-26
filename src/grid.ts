@@ -6,9 +6,9 @@ export const selectedClass = "selected";
 export const getCellClasses = (
     game: Game,
     cell: CellValue,
-    gridId: number,
-    x: number,
-    y: number
+    zPos: number,
+    y: number,
+    x: number
 ): string[] => {
     const classes: string[] = [];
 
@@ -17,7 +17,7 @@ export const getCellClasses = (
             classes.push(selectableClass);
         }
     } else if (game.phase === scorePhase) {
-        const isSelected = game.scoring?.selected.has(makeCellId(gridId, x, y));
+        const isSelected = game.scoring?.selected.has(makeCellId(zPos, y, x));
 
         if (isSelected) {
             classes.push(selectedClass);

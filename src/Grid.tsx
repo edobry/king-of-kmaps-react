@@ -1,25 +1,25 @@
 import { type Game } from "./game";
 import { getCellClasses } from "./grid";
 
-export default function Grid({ gridId, game, cellClick }: { gridId: number, game: Game, cellClick: (gridId: number, x: number, y: number) => void }) {
+export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Game, cellClick: (zPos: number, y: number, x: number) => void }) {
   return (
-    <div id={`grid-${gridId}`} className="grid">
+    <div id={`grid-${zPos}`} className="grid">
       <div className="corner-cell"></div>
-      {game.board[gridId][0].map((_, x) => (
-        <div className="header-cell col-header" key={`grid-${gridId}-col-${x}`}>
+      {game.board[zPos][0].map((_, x) => (
+        <div className="header-cell col-header" key={`grid-${zPos}-col-${x}`}>
           {x}
         </div>
       ))}
       
-      {game.board[gridId].map((row, y) => (
-        <div className="row" key={`grid-${gridId}-row-${y}`}>
+      {game.board[zPos].map((row, y) => (
+        <div className="row" key={`grid-${zPos}-row-${y}`}>
           <div className="header-cell row-header">{y}</div>
           
           {row.map((cell, x) => {
-            const classes = ["cell", ...getCellClasses(game, cell, gridId, x, y)];
+            const classes = ["cell", ...getCellClasses(game, cell, zPos, y, x)];
 
             return (
-              <div key={`grid-${gridId}-${x},${y}`} className={classes.join(" ")} onClick={() => cellClick(gridId, x, y)}>
+              <div key={`grid-${zPos}-${y},${x}`} className={classes.join(" ")} onClick={() => cellClick(zPos, y, x)}>
                 {cell}
               </div>
             );
