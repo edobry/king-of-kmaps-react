@@ -1,7 +1,7 @@
-import { type Game } from "./game";
-import { getCellClasses } from "./grid";
+import { type Game, type Position } from "./game";
+import { getCellClasses } from "./grid.ts";
 
-export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Game, cellClick: (zPos: number, y: number, x: number) => void }) {
+export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Game, cellClick: (...pos: Position) => void }) {
   return (
     <div id={`grid-${zPos}`} className="grid">
       <div className="corner-cell"></div>

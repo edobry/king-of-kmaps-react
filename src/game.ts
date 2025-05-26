@@ -1,3 +1,5 @@
+import { nextCell } from "./grid.ts";
+
 export type Unset = undefined;
 export type Player = 0 | 1;
 export type CellValue = Player | Unset;
@@ -14,15 +16,18 @@ export type ScoringState = {
     selected: Set<string>;
 };
 
+export type Position = [number, number, number];
+
 export type Game = {
+    dimensions: [number, number, number];
     currentTurn: Player;
     board: Board;
     phase: Phase;
     moveCounter: number;
-    scoring?: ScoringState;
+    scoring: ScoringState;
 };
 
-export const makeCellId = (zPos: number, yPos: number, xPos: number) => `${zPos},${yPos},${xPos}`;
+export const makeCellId = (...pos: Position) => pos.map(p => p.toString()).join(",");
 
 export const constructBoard = (numVars: number) => {
     if(numVars > 6) {
@@ -79,3 +84,21 @@ export const makeBoard = (
 export const makeRandomBoard = (zSize: number, ySize: number, xSize: number) => {
     return makeBoard(zSize, ySize, xSize, () => (Math.random() < 0.5 ? 0 : 1));
 };
+
+export const isSelected = (game: Game, ...pos: Position) => {
+    return game.scoring.selected.has(makeCellId(...pos));
+};
+
+export const getAdjacencies = (game: Pick<Game, "dimensions">, pos: Position) =>
+    game.dimensions.flatMap((_, i) => {
+        const nextPos = [0, 0, 0] as Position;
+        nextPos[i] = 1;
+        
+        const prevPos = [0, 0, 0] as Position;
+        prevPos[i] = -1;
+        
+        return [
+            nextCell(game, nextPos, pos),
+            nextCell(game, prevPos, pos),
+        ];
+    });

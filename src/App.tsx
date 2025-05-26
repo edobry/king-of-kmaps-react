@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import './App.css'
 import Grid from './Grid.tsx';
-import { type Game, placePhase, scorePhase, type Phase, type ScorePhase, type Player, type Board, makeCellId, makeBoard, makeRandomBoard, constructBoard } from './game.ts';
+import { type Game, placePhase, scorePhase, type Phase, type ScorePhase, type Player, type Board, makeCellId, makeBoard, makeRandomBoard, constructBoard, isSelected, type Position, getAdjacencies } from './game.ts';
+import { nextCell } from './grid.ts';
 
 function App() {
   const numVars = 5;
   const { zVars, yVars, xVars, zSize, ySize, xSize, size } = constructBoard(numVars);
   
   const initialGame: Game = {
+    dimensions: [zSize, ySize, xSize],
     phase: placePhase as Phase,
     currentTurn: 1 as Player,
     moveCounter: 0,
-    board: makeBoard(zSize, ySize, xSize)
+    board: makeBoard(zSize, ySize, xSize),
+    scoring: {
+        selected: new Set()
+    }
   };
 
   const [game, setGame] = useState(initialGame);
@@ -27,7 +32,9 @@ function App() {
     };
     
     newGame.moveCounter = game.moveCounter + 1;
-    newGame.phase = newGame.moveCounter == size ? scorePhase as ScorePhase : game.phase;
+    if(newGame.moveCounter === size) {
+      newGame.phase = scorePhase as ScorePhase;
+    }
     
     return newGame;
   }
@@ -42,57 +49,50 @@ function App() {
     });
   }
 
-  const makeMove = (game: Game, zPos: number, yPos: number, xPos: number) => {
-      if(game.board[zPos][yPos][xPos] !== undefined) {
+  const makeMove = (game: Game, ...pos: Position) => {
+      if(game.board[pos[0]][pos[1]][pos[2]] !== undefined) {
         return game;
       }
 
       const newBoard: Board = structuredClone(game.board);
-      newBoard[zPos][yPos][xPos] = game.currentTurn;
+      newBoard[pos[0]][pos[1]][pos[2]] = game.currentTurn;
 
       game.currentTurn = game.currentTurn === 1 ? 0 : 1
 
       return updateGame(game, newBoard);
   }
 
-  const makeSelection = (game: Game, zPos: number, yPos: number, xPos: number) => {
-      game.scoring = game.scoring ? structuredClone(game.scoring) : {
-        selected: new Set()
-      };
-
-      if(game.board[zPos][yPos][xPos] !== game.currentTurn) {
+  const makeSelection = (game: Game, ...pos: Position) => {
+      if(game.board[pos[0]][pos[1]][pos[2]] !== game.currentTurn) {
         return game;
       }
 
-      const cellId = makeCellId(zPos, yPos, xPos);
+      game.scoring = structuredClone(game.scoring);
 
-      if(game.scoring.selected.has(cellId)) {
-        game.scoring.selected.delete(cellId);
+      if(isSelected(game, ...pos)) {
+        game.scoring.selected.delete(makeCellId(...pos));
       } else {
-        if(game.scoring.selected.size != 0 && !(
-          game.scoring.selected.has(makeCellId(zPos + 1, yPos, xPos)) ||
-          game.scoring.selected.has(makeCellId(zPos - 1, yPos, xPos)) ||
-          game.scoring.selected.has(makeCellId(zPos, yPos + 1, xPos)) ||
-          game.scoring.selected.has(makeCellId(zPos, yPos - 1, xPos)) ||
-          game.scoring.selected.has(makeCellId(zPos, yPos, xPos + 1)) ||
-          game.scoring.selected.has(makeCellId(zPos, yPos, xPos - 1))
-        )) {
-          return game;
+        if(game.scoring.selected.size !== 0) {
+          const adjacencies = getAdjacencies(game, pos);
+
+          if(!adjacencies.some(adjacency => isSelected(game, ...adjacency))) {
+            return game;
+          }
         }
 
-        game.scoring.selected.add(cellId);
+        game.scoring.selected.add(makeCellId(...pos));
       }
 
       return game;
   }
 
-  const cellClick = (zPos: number, yPos: number, xPos: number) => {
+  const cellClick = (...pos: Position) => {
     setGame((game) => {
       const newGame = structuredClone(game);
 
       return newGame.phase === placePhase
-        ? makeMove(newGame, zPos, yPos, xPos)
-        : makeSelection(newGame, zPos, yPos, xPos);
+        ? makeMove(newGame, ...pos)
+        : makeSelection(newGame, ...pos);
     });
   };
 

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { constructBoard } from "./game";
+import { constructBoard, getAdjacencies, type Position } from "./game";
 
 test("constructBoard: <= 6 vars", () => {
     expect(() => constructBoard(6)).not.toThrow();
@@ -16,4 +16,19 @@ test("constructBoard: 5 vars", () => {
     expect(ySize).toBe(4);
     expect(zSize).toBe(2);
     expect(size).toBe(32);
+});
+
+test("getAdjacencies: 3D", () => {
+    const game = {
+        dimensions: [3, 3, 3] as Position,
+    };
+
+    expect(new Set(getAdjacencies(game, [1, 1, 1]))).toEqual(new Set([
+        [2, 1, 1],
+        [0, 1, 1],
+        [1, 2, 1],
+        [1, 0, 1],
+        [1, 1, 2],
+        [1, 1, 0],
+    ]));
 });
