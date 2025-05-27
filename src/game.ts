@@ -48,13 +48,13 @@ export type Game = {
 
 export type GameUpdate = Unary<Game>;
 
-export const makeGame = (numVars: number): Game => {
+export const makeGame = (numVars: number, phase: Phase = placePhase, currentTurn: Player = 1): Game => {
     const gameInfo = computeGameInfo(numVars);
 
     return {
         info: gameInfo,
-        phase: placePhase,
-        currentTurn: 1,
+        phase,
+        currentTurn,
         moveCounter: 0,
         board: makeBoard(gameInfo.dimensions),
         scoring: {
@@ -176,27 +176,32 @@ export const randomizeBoard: GameUpdate = (game: Game) => {
 };
 
 export const makeMove = (pos: Position): GameUpdate => (game: Game) => {
-    if (game.board[pos[0]][pos[1]][pos[2]] !== undefined) {
+    if (getCell(game, pos) !== undefined) {
         return game;
     }
 
-    game.board[pos[0]][pos[1]][pos[2]] = game.currentTurn;
+    setCell(game, pos, game.currentTurn);
 
     toggleTurn(game);
 
     return placePhaseUpdate(game);
 };
 
-export const setCell = (game: Game, pos: Position, value: CellValue) => {
-    game.board[pos[0]][pos[1]][pos[2]] = value;
-}
+export const getCell = (game: Game, [z, x, y]: Position): CellValue =>
+    game.board[z][x][y];
+
+export const setCell = (game: Game, [z, x, y]: Position, value: CellValue) =>
+    game.board[z][x][y] = value;
 
 export const selectCell = (game: Game, pos: Position) => {
     game.scoring.selected.set(makeCellId(pos), pos);
 }
 
+export const clearSelection = (game: Game) =>
+    game.scoring.selected.clear();
+
 export const makeSelection = (pos: Position): GameUpdate => (game: Game) => {
-    if (game.board[pos[0]][pos[1]][pos[2]] !== game.currentTurn) {
+    if (getCell(game, pos) !== game.currentTurn) {
         return game;
     }
 
@@ -228,7 +233,7 @@ export const groupSelected: GameUpdate = (game: Game) => {
 
     if (game.scoring.selected.size > 1 && game.scoring.selected.size % 2 === 1) {
         alert("Invalid selection: odd number of cells");
-        game.scoring.selected.clear();
+        clearSelection(game);
         return game;
     }
     
@@ -236,13 +241,13 @@ export const groupSelected: GameUpdate = (game: Game) => {
     
     if (!isValidRectangle(game.info, selected)) {
         alert("Invalid selection: not a rectangle");
-        game.scoring.selected.clear();
+        clearSelection(game);
         return game;
     }
     
     game.scoring.groups[game.currentTurn].push(selected);
     game.scoring.numCellsGrouped[game.currentTurn] += selected.length;
-    game.scoring.selected.clear();
+    clearSelection(game);
     selected.forEach(pos =>
         game.scoring.cellsToPlayerGroup.set(
             makeCellId(pos), game.currentTurn));

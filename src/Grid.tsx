@@ -19,7 +19,7 @@ export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Ga
           
           {row.map((cell, xPos) => {
             const pos = [zPos, yPos, xPos] as Position;
-            const classes = ["cell", ...getCellClasses(game, cell, pos)];
+            const classes = ["cell", ...getCellClasses(game, pos)];
 
             return (
               <div key={`grid-${makeCellId(pos)}`} className={classes.join(" ")} onClick={cellClick ? cellClick(pos) : undefined}>

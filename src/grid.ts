@@ -1,4 +1,4 @@
-import { scorePhase, type Game, type CellValue, placePhase, isSelected, type Position, makeCellId, endPhase } from "./game";
+import { scorePhase, type Game, placePhase, isSelected, type Position, makeCellId, endPhase, getCell } from "./game";
 
 export const selectableClass = "selectable";
 export const selectedClass = "selected";
@@ -6,9 +6,10 @@ export const groupedClass = "grouped";
 
 export const getCellClasses = (
     game: Game,
-    cell: CellValue,
     pos: Position
 ): string[] => {
+    const cell = getCell(game, pos);
+    
     const classes: string[] = [];
 
     if (game.phase === placePhase) {
