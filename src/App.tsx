@@ -46,20 +46,31 @@ function App() {
         <>
         <h1>King of K-Maps</h1>
         <div id="info">
-        Variables: {numVars} ({Object.entries(vars).map(([key, value]) =>
+        <b>Variables:</b> {numVars} ({Object.entries(vars).reverse().map(([key, value]) =>
             `${key} = ${value.join(", ")}`).join(" | ")})<br />
-        Grid Size: {size} ({dimensions.map(d => `2^${d}`).join(" x ")})<br />
+        <b>Grid Size:</b> {size} ({dimensions.map(d => `2^${d}`).join(" x ")})<br />
         <br />
         {game.phase !== endPhase && (
             <>
-                Current Phase: {game.phase}<br />
-                Current Turn: Player {game.currentTurn}<br />
+                <b>Current Phase:</b> {game.phase}<br />
+                <b>Current Turn:</b> Player {game.currentTurn}<br />
             </>
         )}
         {game.phase === placePhase && (
             <>
                 <br />
                 Move Counter: {game.moveCounter}
+            </>
+        )}
+        {game.phase === scorePhase && (
+            <>
+                <br />
+                <b>Ungrouped</b>:<br />
+                {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => (
+                    <>
+                    Player {player}: {(game.size / 2) - num} / {game.size / 2}<br />
+                    </>
+                ))}
             </>
         )}
         {[scorePhase, endPhase].includes(game.phase) && (
