@@ -5,6 +5,47 @@
 
 h1 {
   color: rgb(39, 129, 39);
+text-align: center;
+}
+
+#main {
+  margin: 0 auto;
+  margin-bottom: 50px;
+  width: 80%;
+}
+
+#game-start {
+  margin: 30px auto;
+  width: 50%;
+}
+
+#intro {
+    width: 90%;
+    margin: 30px auto;
+    text-align: center;
+}
+
+#game-rules {
+    width: 100%;
+    margin-top: 50px;
+}
+
+#game-rules h2 {
+    text-align: center;
+}
+
+#game-rules li {
+    margin: 15px 0;
+}
+
+#game-inputs {
+  width: 50%;
+  margin: 30px auto;
+}
+
+#game-inputs button {
+    margin: 20px auto;
+    display: block;
 }
 
 #player-select {
