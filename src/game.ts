@@ -1,4 +1,4 @@
-import { nextCell } from "./grid.ts";
+import { getAdjacencies, isValidRectangle } from "./adjacency.ts";
 import type { Unary } from "./utils/state.ts";
 
 export type Unset = undefined;
@@ -31,9 +31,14 @@ export const makeCellId = (pos: Position) => pos.map(p => p.toString()).join(","
 export type Dimensions = [number, number, number];
 export type Position = Dimensions;
 
-export type Game = {
+export type GameInfo = {
+    vars: { [key: string]: string[] };
     dimensions: Dimensions;
     size: number;
+};
+
+export type Game = {
+    info: GameInfo;
     currentTurn: Player;
     board: Board;
     phase: Phase;
@@ -43,32 +48,33 @@ export type Game = {
 
 export type GameUpdate = Unary<Game>;
 
-export const makeInitialGame = (dimensions: Dimensions, size: number) => ({
-    dimensions,
-    size,
-    phase: placePhase as Phase,
-    currentTurn: 1 as Player,
-    moveCounter: 0,
-    board: makeBoard(dimensions),
-    scoring: {
-        selected: new Map(),
-        groups: {
-            0: [],
-            1: [],
-        },
-        numCellsGrouped: {
-            0: 0,
-            1: 0,
-        },
-        cellsToPlayerGroup: new Map(),
-    }
-});
+export const makeGame = (numVars: number): Game => {
+    const gameInfo = computeGameInfo(numVars);
 
-export const constructBoard = (numVars: number): {
-    vars: { [key: string]: string[] };
-    dimensions: Dimensions;
-    size: number;
-} => {
+    return {
+        info: gameInfo,
+        phase: placePhase,
+        currentTurn: 1,
+        moveCounter: 0,
+        board: makeBoard(gameInfo.dimensions),
+        scoring: {
+            selected: new Map(),
+            groups: {
+                0: [],
+                1: [],
+            },
+            numCellsGrouped: {
+                0: 0,
+                1: 0,
+            },
+            cellsToPlayerGroup: new Map(),
+        }
+    };
+};
+
+const dims = ["x", "y", "z"] as const;
+
+export const computeGameInfo = (numVars: number): GameInfo => {
     if(numVars > 6) {
         throw new Error("At most 6 variables are supported");
     }
@@ -86,13 +92,12 @@ export const constructBoard = (numVars: number): {
         }
     }
 
-    const varMap = {
-        z: vars[2],
-        y: vars[1],
-        x: vars[0],
-    };
+    const varMap = dims.reduce((acc, curr, i) => {
+        acc[curr] = vars[i] || [];
+        return acc;
+    }, {} as { [key: string]: string[] });
 
-    const dimensions = Object.values(varMap).map(v => Math.pow(2, v.length)) as Dimensions;
+    const dimensions = Object.values(varMap).reverse().map(v => Math.pow(2, v.length)) as Dimensions;
 
     return {
         vars: varMap,
@@ -141,101 +146,6 @@ export const isSelected = (game: Game, pos: Position) => {
     return game.scoring.selected.has(makeCellId(pos));
 };
 
-export const getAdjacencies = (game: Pick<Game, "dimensions">, pos: Position) =>
-    game.dimensions.flatMap((_, i) => {
-        const nextPos = [0, 0, 0] as Position;
-        nextPos[i] = 1;
-        
-        const prevPos = [0, 0, 0] as Position;
-        prevPos[i] = -1;
-        
-        return [
-            nextCell(game, nextPos, pos),
-            nextCell(game, prevPos, pos),
-        ];
-    });
-
-export const isValidRectangle = (game: Pick<Game, "dimensions">, selected: Position[]) => {
-    if (selected.length === 0) return false;
-    if (selected.length === 1) return true;
-    
-    // For K-maps, rectangles can wrap around edges
-    // We need to check if the selection forms a valid rectangle considering wraparound
-    
-    // Get all unique coordinates for each dimension
-    const zCoords = [...new Set(selected.map(pos => pos[0]))].sort((a, b) => a - b);
-    const yCoords = [...new Set(selected.map(pos => pos[1]))].sort((a, b) => a - b);
-    const xCoords = [...new Set(selected.map(pos => pos[2]))].sort((a, b) => a - b);
-    
-    // Generate the expected rectangle considering possible wraparound
-    const expectedCells = new Set<string>();
-    
-    // For each dimension, determine if we need to consider wraparound
-    const zWrapped = shouldWrapAround(zCoords, game.dimensions[0]);
-    const yWrapped = shouldWrapAround(yCoords, game.dimensions[1]);
-    const xWrapped = shouldWrapAround(xCoords, game.dimensions[2]);
-    
-    // Generate all positions in the rectangle
-    const zRange = expandRange(zCoords, zWrapped);
-    const yRange = expandRange(yCoords, yWrapped);
-    const xRange = expandRange(xCoords, xWrapped);
-    
-
-    for (const z of zRange) {
-        for (const y of yRange) {
-            for (const x of xRange) {
-                expectedCells.add(makeCellId([z, y, x]));
-            }
-        }
-    }
-    
-    // Check if expected cells match selected cells exactly
-    const selectedCells = new Set(selected.map(pos => makeCellId(pos)));
-    
-
-    return expectedCells.size === selectedCells.size && 
-           [...expectedCells].every(cellId => selectedCells.has(cellId));
-};
-
-// Check if coordinates should be interpreted as wrapping around
-const shouldWrapAround = (coords: number[], dimensionSize: number): boolean => {
-    if (coords.length <= 1) return false;
-    
-    const min = Math.min(...coords);
-    const max = Math.max(...coords);
-    
-    // Check if this could be a wraparound: 
-    // 1. We have coordinates at both edges (0 and max dimension)
-    // 2. The gap between min and max is larger than the number of coordinates would suggest
-    const hasEdgeCoords = coords.includes(0) && coords.includes(dimensionSize - 1);
-    const normalSpan = max - min + 1;
-    const gapSize = normalSpan - coords.length;
-    
-
-    // If we have edge coordinates and there's a gap, it might be wraparound
-    return hasEdgeCoords && gapSize > 0;
-};
-
-// Expand coordinate range considering wraparound
-const expandRange = (coords: number[], wrapped: boolean): number[] => {
-    if (coords.length === 1) return coords;
-    
-    if (wrapped) {
-        // For wraparound, only include the actual coordinates, not the gap in between
-        // This is because in K-maps, a wraparound rectangle doesn't include the middle positions
-        return coords.slice().sort((a, b) => a - b);
-    } else {
-        // Normal case: fill in the range between min and max
-        const min = Math.min(...coords);
-        const max = Math.max(...coords);
-        const result = [];
-        for (let i = min; i <= max; i++) {
-            result.push(i);
-        }
-        return result;
-    }
-};
-
 export const getWinner = (game: Game): Player | undefined => {
     const player0Groups = game.scoring.groups[0];
     const player1Groups = game.scoring.groups[1];
@@ -250,7 +160,7 @@ export const getWinner = (game: Game): Player | undefined => {
 
 export const placePhaseUpdate: GameUpdate = (game: Game) => {
     game.moveCounter = game.moveCounter + 1;
-    if (game.moveCounter === game.size) {
+    if (game.moveCounter === game.info.size) {
         game.phase = scorePhase as ScorePhase;
     }
 
@@ -258,7 +168,7 @@ export const placePhaseUpdate: GameUpdate = (game: Game) => {
 };
 
 export const randomizeBoard: GameUpdate = (game: Game) => {
-    game.board = makeRandomBoard(game.dimensions);
+    game.board = makeRandomBoard(game.info.dimensions);
     game.phase = placePhase;
     game.moveCounter = 31;
 
@@ -277,6 +187,14 @@ export const makeMove = (pos: Position): GameUpdate => (game: Game) => {
     return placePhaseUpdate(game);
 };
 
+export const setCell = (game: Game, pos: Position, value: CellValue) => {
+    game.board[pos[0]][pos[1]][pos[2]] = value;
+}
+
+export const selectCell = (game: Game, pos: Position) => {
+    game.scoring.selected.set(makeCellId(pos), pos);
+}
+
 export const makeSelection = (pos: Position): GameUpdate => (game: Game) => {
     if (game.board[pos[0]][pos[1]][pos[2]] !== game.currentTurn) {
         return game;
@@ -286,10 +204,10 @@ export const makeSelection = (pos: Position): GameUpdate => (game: Game) => {
         game.scoring.selected.delete(makeCellId(pos));
     } else {
         if (game.scoring.selected.size !== 0) {
-            const adjacencies = getAdjacencies(game, pos);
+            const adjacencies = getAdjacencies(game.info, pos);
 
             if (
-                !adjacencies.some((adjacency) =>
+                !adjacencies.some((adjacency: Position) =>
                     isSelected(game, adjacency)
                 )
             ) {
@@ -297,7 +215,7 @@ export const makeSelection = (pos: Position): GameUpdate => (game: Game) => {
             }
         }
 
-        game.scoring.selected.set(makeCellId(pos), pos);
+        selectCell(game, pos);
     }
 
     return game;
@@ -316,7 +234,7 @@ export const groupSelected: GameUpdate = (game: Game) => {
     
     const selected = Array.from(game.scoring.selected.values());
     
-    if (!isValidRectangle(game, selected)) {
+    if (!isValidRectangle(game.info, selected)) {
         alert("Invalid selection: not a rectangle");
         game.scoring.selected.clear();
         return game;
@@ -330,9 +248,9 @@ export const groupSelected: GameUpdate = (game: Game) => {
             makeCellId(pos), game.currentTurn));
 
     toggleTurn(game);
-    if (game.scoring.numCellsGrouped[game.currentTurn] == game.size / 2) {
+    if (game.scoring.numCellsGrouped[game.currentTurn] == game.info.size / 2) {
         toggleTurn(game);
-        if (game.scoring.numCellsGrouped[game.currentTurn] == game.size / 2) {
+        if (game.scoring.numCellsGrouped[game.currentTurn] == game.info.size / 2) {
             game.phase = endPhase;
         }
     }

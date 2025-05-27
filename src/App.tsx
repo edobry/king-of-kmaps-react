@@ -1,14 +1,13 @@
 import { Fragment, useMemo } from 'react';
 import './App.css'
 import Grid, { type CellClick } from './Grid.tsx';
-import { type Game, placePhase, scorePhase, constructBoard, type Position, endPhase, getWinner, groupSelected, makeMove, makeSelection, makeInitialGame, randomizeBoard } from './game.ts';
+import { placePhase, scorePhase, type Position, endPhase, getWinner, groupSelected, makeMove, makeSelection, makeGame, randomizeBoard } from './game.ts';
 import { useUpdater } from './utils/state.ts';
 
 function App() {
     const numVars = 5;
-    const { vars, dimensions, size } = constructBoard(numVars);
     
-    const initialGame: Game = makeInitialGame(dimensions, size);
+    const initialGame = makeGame(numVars);
     
     const { state: game, onClick, reset: resetGame } = useUpdater(initialGame);
 
@@ -28,9 +27,9 @@ function App() {
     return (<>
         <h1>King of K-Maps</h1>
         <div id="info">
-        <b>Variables:</b> {numVars} ({Object.entries(vars).reverse().map(([key, value]) =>
+        <b>Variables:</b> {numVars} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
             `${key} = ${value.join(", ")}`).join(" | ")})<br />
-        <b>Grid Size:</b> {size} ({dimensions.map(d => `2^${d}`).join(" x ")})<br />
+        <b>Grid Size:</b> {game.info.size} ({game.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
         <br />
         {game.phase !== endPhase && (
             <>
@@ -50,7 +49,7 @@ function App() {
                 <b>Ungrouped</b>:<br />
                 {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => (
                     <Fragment key={player}>
-                        Player {player}: {(game.size / 2) - num} / {game.size / 2}<br />
+                        Player {player}: {(game.info.size / 2) - num} / {game.info.size / 2}<br />
                     </Fragment>
                 ))}
             </>
