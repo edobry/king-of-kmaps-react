@@ -67,3 +67,11 @@ h1 {
 .cell.selected.selectable:hover {
   background-color: rgb(121, 121, 121);
 }
+
+.group-0 {
+  background-color: rgb(154, 159, 226);
+}
+
+.group-1 {
+  background-color: rgb(127, 196, 120);
+}

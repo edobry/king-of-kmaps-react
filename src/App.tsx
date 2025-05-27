@@ -1,125 +1,102 @@
 import { useState } from 'react';
 import './App.css'
 import Grid from './Grid.tsx';
-import { type Game, placePhase, scorePhase, type Phase, type ScorePhase, type Player, type Board, makeCellId, makeBoard, makeRandomBoard, constructBoard, isSelected, type Position, getAdjacencies } from './game.ts';
-import { nextCell } from './grid.ts';
+import { type Game, placePhase, scorePhase, makeRandomBoard, constructBoard, type Position, endPhase, getWinner, groupSelected, updateGame, makeMove, makeSelection, makeInitialGame } from './game.ts';
 
 function App() {
-  const numVars = 5;
-  const { zVars, yVars, xVars, zSize, ySize, xSize, size } = constructBoard(numVars);
-  
-  const initialGame: Game = {
-    dimensions: [zSize, ySize, xSize],
-    phase: placePhase as Phase,
-    currentTurn: 1 as Player,
-    moveCounter: 0,
-    board: makeBoard(zSize, ySize, xSize),
-    scoring: {
-        selected: new Set()
+    const numVars = 5;
+    const { vars, dimensions, size } = constructBoard(numVars);
+    
+    const initialGame: Game = makeInitialGame(dimensions, size);
+    
+    const [game, setGame] = useState(initialGame);
+    
+    const resetGame = () => {
+        setGame(initialGame);
     }
-  };
-
-  const [game, setGame] = useState(initialGame);
-
-  const resetGame = () => {
-    setGame(initialGame);
-  }
-
-  const updateGame = (game: Game, board: Board) => {
-    const newGame: Game = {
-      ...game,
-      board,
+    
+    const randomizeBoard = () => {
+        setGame((game) => {
+            return updateGame({
+                ...game,
+                moveCounter: 31
+            }, makeRandomBoard(dimensions));
+        });
+    }
+        
+    const cellClick = (pos: Position) => {
+        setGame((game) => {
+            const newGame = structuredClone(game);
+            
+            return newGame.phase === placePhase
+                ? makeMove(newGame, pos)
+                : makeSelection(newGame, pos);
+        });
     };
     
-    newGame.moveCounter = game.moveCounter + 1;
-    if(newGame.moveCounter === size) {
-      newGame.phase = scorePhase as ScorePhase;
+    const makeGroup = () => {
+        setGame((game) => {
+            const newGame = structuredClone(game);
+            
+            return groupSelected(newGame);
+        });
     }
     
-    return newGame;
-  }
-
-
-  const randomizeBoard = () => {
-    setGame((game) => {
-      return updateGame({
-        ...game,
-        moveCounter: 31
-      }, makeRandomBoard(zSize, ySize, xSize));
-    });
-  }
-
-  const makeMove = (game: Game, ...pos: Position) => {
-      if(game.board[pos[0]][pos[1]][pos[2]] !== undefined) {
-        return game;
-      }
-
-      const newBoard: Board = structuredClone(game.board);
-      newBoard[pos[0]][pos[1]][pos[2]] = game.currentTurn;
-
-      game.currentTurn = game.currentTurn === 1 ? 0 : 1
-
-      return updateGame(game, newBoard);
-  }
-
-  const makeSelection = (game: Game, ...pos: Position) => {
-      if(game.board[pos[0]][pos[1]][pos[2]] !== game.currentTurn) {
-        return game;
-      }
-
-      game.scoring = structuredClone(game.scoring);
-
-      if(isSelected(game, ...pos)) {
-        game.scoring.selected.delete(makeCellId(...pos));
-      } else {
-        if(game.scoring.selected.size !== 0) {
-          const adjacencies = getAdjacencies(game, pos);
-
-          if(!adjacencies.some(adjacency => isSelected(game, ...adjacency))) {
-            return game;
-          }
-        }
-
-        game.scoring.selected.add(makeCellId(...pos));
-      }
-
-      return game;
-  }
-
-  const cellClick = (...pos: Position) => {
-    setGame((game) => {
-      const newGame = structuredClone(game);
-
-      return newGame.phase === placePhase
-        ? makeMove(newGame, ...pos)
-        : makeSelection(newGame, ...pos);
-    });
-  };
-
-  return (
-    <>
-      <h1>King of K-Maps</h1>
-      <div id="info">
-        Variables: {numVars} (x = {xVars.join(", ")} | y = {yVars.join(", ")} | z = {zVars.join(", ")})<br />
-        Grid Size: {size} ({xSize} x states (2^{xVars.length}) * {ySize} y states (2^{yVars.length}) * {zSize} z states (2^{zVars.length}))<br />
+    return (
+        <>
+        <h1>King of K-Maps</h1>
+        <div id="info">
+        Variables: {numVars} ({Object.entries(vars).map(([key, value]) =>
+            `${key} = ${value.join(", ")}`).join(" | ")})<br />
+        Grid Size: {size} ({dimensions.map(d => `2^${d}`).join(" x ")})<br />
         <br />
-        Current Phase: {game.phase}<br />
-        Current Turn: Player {game.currentTurn}<br />
-        {game.phase === placePhase ? `Move Counter: ${game.moveCounter}` : ""}
-      </div>
-      <div id="debug-controls">
+        {game.phase !== endPhase && (
+            <>
+                Current Phase: {game.phase}<br />
+                Current Turn: Player {game.currentTurn}<br />
+            </>
+        )}
+        {game.phase === placePhase && (
+            <>
+                <br />
+                Move Counter: {game.moveCounter}
+            </>
+        )}
+        {[scorePhase, endPhase].includes(game.phase) && (
+            <>
+                <br />
+                <b>Groups:</b>
+                <br />
+                {Object.entries(game.scoring.groups).map(([player, groups]) => (
+                    <>
+                    Player {player}: {groups.length}<br />
+                    </>
+                ))}
+            </>
+        )}
+        {game.phase === endPhase && (
+            <>
+            <br />
+            <b>Winner: Player {getWinner(game)}</b>
+            </>
+        )}
+        </div>
+        <div id="debug-controls">
         <button id="resetGame" onClick={resetGame}>Reset</button>
         {game.phase === placePhase && (
-          <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
+            <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
         )}
-      </div>
-      <div id="board">
+        {game.phase === scorePhase && (
+            <button id="groupSelected" onClick={makeGroup}>Group</button>
+        )}
+        </div>
+        <div id="board">
         {game.board.map((_, zPos) => (
-          <Grid key={`grid-${zPos}`} zPos={zPos} game={game} cellClick={cellClick} />
+            <Grid key={`grid-${zPos}`} zPos={zPos} game={game} cellClick={game.phase !== endPhase ? cellClick : () => {}} />
         ))}
-      </div>
-    </>
-  )
+        </div>
+        </>
+    )
 }
 
 export default App
