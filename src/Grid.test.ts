@@ -3,14 +3,14 @@ import { scorePhase, makeGame, selectCell, setCell, placePhase, type Position } 
 import { getCellClasses, selectableClass, selectedClass } from "./grid.ts";
 
 test("getCellClasses: place phase, empty cell is selectable", () => {
-    const game = makeGame(3, placePhase);
+    const game = makeGame(3, { phase: placePhase });
 
     const classes = getCellClasses(game, [0, 0, 0]);
     expect(classes).toContain(selectableClass);
 });
 
 test("getCellClasses: place phase, filled cell is not selectable", () => {
-    const game = makeGame(3, placePhase);
+    const game = makeGame(3, { phase: placePhase });
     
     const pos = [0, 0, 0] as Position;
 
@@ -21,7 +21,7 @@ test("getCellClasses: place phase, filled cell is not selectable", () => {
 });
 
 test("getCellClasses: score phase, selected cell is selected", () => {
-    const game = makeGame(3, scorePhase);
+    const game = makeGame(3, { phase: scorePhase });
 
     const pos = [0, 0, 0] as Position;
 
@@ -33,7 +33,7 @@ test("getCellClasses: score phase, selected cell is selected", () => {
 });
 
 test("getCellClasses: score phase, unselected cell is not selected", () => {
-    const game = makeGame(3, scorePhase);
+    const game = makeGame(3, { phase: scorePhase });
 
     const pos = [0, 0, 0] as Position;
 
@@ -44,7 +44,7 @@ test("getCellClasses: score phase, unselected cell is not selected", () => {
 });
 
 test("getCellClasses: score phase, owned cell is selectable", () => {
-    const game = makeGame(3, scorePhase, 1);
+    const game = makeGame(3, { phase: scorePhase, currentTurn: 1 });
 
     const pos = [0, 0, 0] as Position;
 
@@ -56,7 +56,7 @@ test("getCellClasses: score phase, owned cell is selectable", () => {
 });
 
 test("getCellClasses: score phase, unowned cell is not selectable", () => {
-    const game = makeGame(3, scorePhase, 1);
+    const game = makeGame(3, { phase: scorePhase, currentTurn: 1 });
 
     const pos = [0, 0, 0] as Position;
 

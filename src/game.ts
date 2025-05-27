@@ -44,11 +44,12 @@ export type Game = {
     phase: Phase;
     moveCounter: number;
     scoring: ScoringState;
+    players: string[];
 };
 
 export type GameUpdate = Unary<Game>;
 
-export const makeGame = (numVars: number, phase: Phase = placePhase, currentTurn: Player = 1): Game => {
+export const makeGame = (numVars: number, { players = [], phase = placePhase, currentTurn = 1 }: { players?: string[], phase?: Phase, currentTurn?: Player } = {}): Game => {
     const gameInfo = computeGameInfo(numVars);
 
     return {
@@ -68,7 +69,8 @@ export const makeGame = (numVars: number, phase: Phase = placePhase, currentTurn
                 1: 0,
             },
             cellsToPlayerGroup: new Map(),
-        }
+        },
+        players,
     };
 };
 
