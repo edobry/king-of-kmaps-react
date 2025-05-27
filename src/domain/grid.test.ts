@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { scorePhase, makeGame, selectCell, setCell, placePhase, type Position } from "./game";
-import { getCellClasses, selectableClass, selectedClass } from "./grid.ts";
+import { getCellClasses, selectableClass, selectedClass } from "./grid";
 
 test("getCellClasses: place phase, empty cell is selectable", () => {
     const game = makeGame(3, { phase: placePhase });

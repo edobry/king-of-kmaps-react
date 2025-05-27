@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-export type Unary<T> = (x: T) => T;
-
 export const useUpdater = <T>(initialState: T) => {
     const [state, setState] = useState(initialState);
 

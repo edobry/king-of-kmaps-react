@@ -1,5 +1,5 @@
-import { getAdjacencies, isValidRectangle } from "./adjacency.ts";
-import type { Unary } from "./utils/state.ts";
+import { getAdjacencies, isValidRectangle } from "./adjacency";
+import type { Unary } from "../util/util";
 
 export type Unset = undefined;
 export type Player = 0 | 1;

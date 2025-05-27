@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import type { Position } from "./game";
-import { nextCell } from "./adjacency";
+import type { Position } from "../domain/game";
+import { nextCell } from "../domain/adjacency";
 
 test("nextCell: throws if multiple dimensions are specified", () => {
     const game = {
