@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { Fragment, useMemo } from 'react';
 import './App.css'
-import Grid from './Grid.tsx';
-import { type Game, placePhase, scorePhase, makeRandomBoard, constructBoard, type Position, endPhase, getWinner, groupSelected, updateGame, makeMove, makeSelection, makeInitialGame } from './game.ts';
+import Grid, { type CellClick } from './Grid.tsx';
+import { type Game, placePhase, scorePhase, constructBoard, type Position, endPhase, getWinner, groupSelected, makeMove, makeSelection, makeInitialGame, randomizeBoard } from './game.ts';
+import { useUpdater } from './utils/state.ts';
 
 function App() {
     const numVars = 5;
@@ -9,41 +10,22 @@ function App() {
     
     const initialGame: Game = makeInitialGame(dimensions, size);
     
-    const [game, setGame] = useState(initialGame);
+    const { state: game, onClick, reset: resetGame } = useUpdater(initialGame);
+
+    const cellClick = useMemo<CellClick | undefined>(() => {
+        if(game.phase === endPhase) {
+            return undefined;
+        }
+
+        const handler = {
+            [placePhase]: makeMove,
+            [scorePhase]: makeSelection
+        }[game.phase];
+
+        return (pos: Position) => onClick(handler(pos));
+    }, [game.phase, onClick]);
     
-    const resetGame = () => {
-        setGame(initialGame);
-    }
-    
-    const randomizeBoard = () => {
-        setGame((game) => {
-            return updateGame({
-                ...game,
-                moveCounter: 31
-            }, makeRandomBoard(dimensions));
-        });
-    }
-        
-    const cellClick = (pos: Position) => {
-        setGame((game) => {
-            const newGame = structuredClone(game);
-            
-            return newGame.phase === placePhase
-                ? makeMove(newGame, pos)
-                : makeSelection(newGame, pos);
-        });
-    };
-    
-    const makeGroup = () => {
-        setGame((game) => {
-            const newGame = structuredClone(game);
-            
-            return groupSelected(newGame);
-        });
-    }
-    
-    return (
-        <>
+    return (<>
         <h1>King of K-Maps</h1>
         <div id="info">
         <b>Variables:</b> {numVars} ({Object.entries(vars).reverse().map(([key, value]) =>
@@ -67,9 +49,9 @@ function App() {
                 <br />
                 <b>Ungrouped</b>:<br />
                 {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => (
-                    <>
-                    Player {player}: {(game.size / 2) - num} / {game.size / 2}<br />
-                    </>
+                    <Fragment key={player}>
+                        Player {player}: {(game.size / 2) - num} / {game.size / 2}<br />
+                    </Fragment>
                 ))}
             </>
         )}
@@ -79,9 +61,9 @@ function App() {
                 <b>Groups:</b>
                 <br />
                 {Object.entries(game.scoring.groups).map(([player, groups]) => (
-                    <>
-                    Player {player}: {groups.length}<br />
-                    </>
+                    <Fragment key={player}>
+                        Player {player}: {groups.length}<br />
+                    </Fragment>
                 ))}
             </>
         )}
@@ -95,19 +77,18 @@ function App() {
         <div id="debug-controls">
         <button id="resetGame" onClick={resetGame}>Reset</button>
         {game.phase === placePhase && (
-            <button id="randomizeBoard" onClick={randomizeBoard}>Randomize</button>
+            <button id="randomizeBoard" onClick={onClick(randomizeBoard)}>Randomize</button>
         )}
         {game.phase === scorePhase && (
-            <button id="groupSelected" onClick={makeGroup}>Group</button>
+            <button id="groupSelected" onClick={onClick(groupSelected)}>Group</button>
         )}
         </div>
         <div id="board">
         {game.board.map((_, zPos) => (
-            <Grid key={`grid-${zPos}`} zPos={zPos} game={game} cellClick={game.phase !== endPhase ? cellClick : () => {}} />
+            <Grid key={`grid-${zPos}`} zPos={zPos} game={game} cellClick={cellClick} />
         ))}
         </div>
-        </>
-    )
+    </>);
 }
 
 export default App

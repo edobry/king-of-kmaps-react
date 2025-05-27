@@ -1,7 +1,9 @@
 import { makeCellId, type Game, type Position } from "./game";
 import { getCellClasses } from "./grid.ts";
 
-export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Game, cellClick: (pos: Position) => void }) {
+export type CellClick = (pos: Position) => () => void;
+
+export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Game, cellClick?: CellClick }) {
   return (
     <div id={`grid-${zPos}`} className="grid">
       <div className="corner-cell"></div>
@@ -20,7 +22,7 @@ export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Ga
             const classes = ["cell", ...getCellClasses(game, cell, pos)];
 
             return (
-              <div key={`grid-${makeCellId(pos)}`} className={classes.join(" ")} onClick={() => cellClick(pos)}>
+              <div key={`grid-${makeCellId(pos)}`} className={classes.join(" ")} onClick={cellClick ? cellClick(pos) : undefined}>
                 {cell}
               </div>
             );

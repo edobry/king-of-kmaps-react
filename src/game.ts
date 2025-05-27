@@ -1,4 +1,5 @@
 import { nextCell } from "./grid.ts";
+import type { Unary } from "./utils/state.ts";
 
 export type Unset = undefined;
 export type Player = 0 | 1;
@@ -39,6 +40,8 @@ export type Game = {
     moveCounter: number;
     scoring: ScoringState;
 };
+
+export type GameUpdate = Unary<Game>;
 
 export const makeInitialGame = (dimensions: Dimensions, size: number) => ({
     dimensions,
@@ -245,34 +248,36 @@ export const getWinner = (game: Game): Player | undefined => {
 }
 
 
-export const updateGame = (game: Game, board: Board) => {
-    const newGame: Game = {
-        ...game,
-        board,
-    };
-
-    newGame.moveCounter = game.moveCounter + 1;
-    if (newGame.moveCounter === game.size) {
-        newGame.phase = scorePhase as ScorePhase;
+export const placePhaseUpdate: GameUpdate = (game: Game) => {
+    game.moveCounter = game.moveCounter + 1;
+    if (game.moveCounter === game.size) {
+        game.phase = scorePhase as ScorePhase;
     }
 
-    return newGame;
+    return game;
 };
 
-export const makeMove = (game: Game, pos: Position) => {
+export const randomizeBoard: GameUpdate = (game: Game) => {
+    game.board = makeRandomBoard(game.dimensions);
+    game.phase = placePhase;
+    game.moveCounter = 31;
+
+    return placePhaseUpdate(game);
+};
+
+export const makeMove = (pos: Position): GameUpdate => (game: Game) => {
     if (game.board[pos[0]][pos[1]][pos[2]] !== undefined) {
         return game;
     }
 
-    const newBoard: Board = structuredClone(game.board);
-    newBoard[pos[0]][pos[1]][pos[2]] = game.currentTurn;
+    game.board[pos[0]][pos[1]][pos[2]] = game.currentTurn;
 
     toggleTurn(game);
 
-    return updateGame(game, newBoard);
+    return placePhaseUpdate(game);
 };
 
-export const makeSelection = (game: Game, pos: Position) => {
+export const makeSelection = (pos: Position): GameUpdate => (game: Game) => {
     if (game.board[pos[0]][pos[1]][pos[2]] !== game.currentTurn) {
         return game;
     }
@@ -298,7 +303,7 @@ export const makeSelection = (game: Game, pos: Position) => {
     return game;
 };
 
-export const groupSelected = (game: Game): Game => {
+export const groupSelected: GameUpdate = (game: Game) => {
     if (game.scoring.selected.size === 0) {
         return game;
     }
