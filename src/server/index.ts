@@ -1,10 +1,12 @@
 import express from "express";
 import { NotFoundError } from "./errors";
 import gameRouter from "./routes";
+import morgan from "morgan";
 
 const app = express();
 const port = 3000;
 
+app.use(morgan('dev'));
 app.use(express.json());
 
 app.use("/game", gameRouter);
