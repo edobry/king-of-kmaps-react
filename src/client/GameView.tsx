@@ -1,8 +1,9 @@
 import { Fragment, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, getWinner, groupSelected, makeMove, makeSelection, makeGame, randomizeBoard, type Player, type Game } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, getWinner, groupSelected, makeGame, randomizeBoard, type Player, type Game, makeMove, makeSelection } from '../domain/game';
 import { useUpdater } from './utils/state';
 import './App.css'
+import React from 'react';
 
 const getPlayerName = (game: Game, player: Player) =>
     game.players[player]

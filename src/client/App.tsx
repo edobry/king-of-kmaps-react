@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import './App.css'
 import GameView from './GameView.tsx';
+import React from 'react';
+import { fetchGame } from './api';
 
 type AppState = {
     gameStarted: boolean;
     players: string[];
     numVars: number;
 }
+
+type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
 function App() {
     const [app, setApp] = useState<AppState>({
@@ -15,18 +19,11 @@ function App() {
         numVars: 5,
     });
 
-    const setNumVars = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const numVars = parseInt(e.target.value);
+    const appUpdater = (updater: (app: AppState) => void) => {
         const newApp = structuredClone(app);
-        newApp.numVars = numVars;
+        updater(newApp);
         setApp(newApp);
-    };
-
-    const setPlayer = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newApp = structuredClone(app);
-        newApp.players[index] = e.target.value;
-        setApp(newApp);
-    };
+    }
     
     return (<>
         <h1>King of K-Maps</h1>
@@ -39,17 +36,9 @@ function App() {
                         Now, you too can experience <b>King of K-Maps!</b>
                         <br /><br />
                     </div>
-                     <div id="game-inputs">
-                        <b>Number of Variables:</b> <input type="number" min={1} max={6} value={app.numVars} onChange={setNumVars} />
-                        
-                        <div id="player-select">
-                            <b>Players:</b>
-                            {app.players.map((_, index ) => (
-                                <input type="text" key={index} onChange={setPlayer(index)} placeholder={`Player ${index + 1}`} />
-                            ))}
-                        </div>
-                        <button onClick={() => setApp({ ...app, gameStarted: true })}>Start Game</button>
-                    </div>
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <GameStart app={app} appUpdater={appUpdater} />
+                    </Suspense>
                     <div id="game-rules">
                         <h2>How to Play</h2>
                         <ol>
@@ -74,6 +63,35 @@ function App() {
             )}
         </div>
     </>);
+}
+
+function GameStart({ app, appUpdater }: { app: AppState, appUpdater: (updater: (app: AppState) => void) => void }) {
+    const setNumVars: ChangeHandler = useCallback((e) => {
+        appUpdater(app => {
+            app.numVars = parseInt(e.target.value)
+        });
+    }, [appUpdater]);
+
+    const setPlayer = useCallback((index: number): ChangeHandler => (e) => {
+        appUpdater((app) => (
+            app.players[index] = e.target.value
+        ));
+    }, [appUpdater]);
+
+    return (
+        <div id="game-inputs">
+            <b>Number of Variables:</b> <input type="number" min={1} max={6} value={app.numVars} onChange={setNumVars} />
+            
+            <div id="player-select">
+                <b>Players:</b>
+                {app.players.map((_, index ) => (
+                    <input type="text" key={index} onChange={setPlayer(index)} placeholder={`Player ${index + 1}`} />
+                ))}
+            </div>
+            <button onClick={() => appUpdater(app => (app.gameStarted = true))}>Start Game</button>
+        
+        </div>
+    )
 }
 
 export default App

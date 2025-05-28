@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Unary } from "../../util/util";
 
 export const useUpdater = <T>(initialState: T) => {
     const [state, setState] = useState(initialState);
