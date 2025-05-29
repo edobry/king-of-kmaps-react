@@ -105,4 +105,9 @@ router.post("/group", (req: express.Request, res: express.Response) => {
     res.send(superjson.stringify(game));
 });
 
+router.delete("/", (req: express.Request, res: express.Response) => {
+    game = undefined;
+    res.sendStatus(204);
+});
+
 export default router;

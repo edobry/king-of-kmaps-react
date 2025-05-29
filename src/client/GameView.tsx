@@ -9,8 +9,8 @@ const getPlayerName = (game: Game, player: Player) =>
         ? `${game.players[player]} (${player})`
         : `Player ${player}`;
 
-function GameView({ game: initialGame }: { game: Game }) {
-    const { state: game, makeHandler, makeAsyncHandler, reset: resetGame } = useUpdater(initialGame);
+function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => Promise<void> }) {
+    const { state: game, makeHandler, makeAsyncHandler } = useUpdater(initialGame);
 
     const cellClick = useMemo<CellClick | undefined>(() => {
         if(game.phase === endPhase) {
@@ -64,8 +64,8 @@ function GameView({ game: initialGame }: { game: Game }) {
             </>)}
             {game.phase === endPhase && Winner(game)}
         </div>
-        <div id="debug-controls">
-            <button id="resetGame" onClick={resetGame}>Reset</button>
+        <div id="controls">
+            <button id="newGame" onClick={newGame}>New Game</button>
             {game.phase === placePhase && (
                 <button id="randomizeBoard" onClick={makeAsyncHandler(randomizeBoard)}>Randomize</button>
             )}

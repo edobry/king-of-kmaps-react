@@ -44,3 +44,6 @@ export const makeMove = async (pos: Position) =>
 
 export const groupSelected = async (selected: Position[]) =>
     superParse<Game>(await doFetch("/game/group", "POST", { body: JSON.stringify({ selected }) }));
+
+export const resetGame = async () =>
+    doFetch("/game", "DELETE");

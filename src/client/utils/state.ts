@@ -19,7 +19,6 @@ export const useUpdater = <T>(initialState: T) => {
         makeAsyncHandler: (update: (x: T) => Promise<T>) => async () => {
             const newState = await update(state);
             setState(newState);
-        },
-        reset: () => setState(initialState),
+        }
     };
 };
