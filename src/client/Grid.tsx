@@ -1,6 +1,5 @@
 import { makeCellId, type Game, type Position } from "../domain/game";
 import { getCellClasses } from "../domain/grid";
-import React from "react";
 
 export type CellClick = (pos: Position) => () => void;
 

@@ -42,5 +42,5 @@ export const randomizeBoard = async () =>
 export const makeMove = async (pos: Position) =>
     superParse<Game>(await doFetch("/game/move", "POST", { body: JSON.stringify({ pos }) }));
 
-export const makeSelection = async (pos: Position) =>
-    superParse<Game>(await doFetch("/game/select", "POST", { body: JSON.stringify({ pos }) }));
+export const groupSelected = async (selected: Position[]) =>
+    superParse<Game>(await doFetch("/game/group", "POST", { body: JSON.stringify({ selected }) }));

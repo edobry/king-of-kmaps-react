@@ -1,4 +1,4 @@
-import { makeGame, makeMove, makeSelection, randomizeBoard, type Game } from "../domain/game";
+import { groupSelected, makeCellId, makeGame, makeMove, makeSelection, randomizeBoard, type Game } from "../domain/game";
 import express from "express";
 import { NotFoundError } from "./errors";
 import superjson from "superjson";
@@ -79,22 +79,28 @@ router.post("/move", (req: express.Request, res: express.Response) => {
     res.send(superjson.stringify(game));
 });
 
-router.post("/select", (req: express.Request, res: express.Response) => {
+router.post("/group", (req: express.Request, res: express.Response) => {
     const body = req.body;
-
+    
     if (!body) {
-        throw new Error("you must send a move");
+        throw new Error("you must send a selection");
     }
 
-    if (!body.pos) {
-        throw new Error("you must send a position");
+    if (!body.selected) {
+        throw new Error("you must send a selection");
     }
 
     if (!game) {
         throw new Error("game not initialized");
     }
 
-    game = makeSelection(body.pos)(game);
+    const selected = body.selected as Position[];
+    
+    game.scoring.selected = new Map(
+        selected.map(pos => [makeCellId(pos), pos])
+    );
+
+    game = groupSelected(game);
 
     res.send(superjson.stringify(game));
 });

@@ -1,8 +1,8 @@
-import React, { Fragment, useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, getWinner, groupSelected, type Player, type Game } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, getWinner, type Player, type Game, makeSelection } from '../domain/game';
 import { useUpdater } from './utils/state';
-import { makeMove, makeSelection, randomizeBoard } from './api';
+import { groupSelected, makeMove, randomizeBoard } from './api';
 
 const getPlayerName = (game: Game, player: Player) =>
     game.players[player]
@@ -17,13 +17,11 @@ function GameView({ game: initialGame }: { game: Game }) {
             return undefined;
         }
 
-        const handler = {
-            [placePhase]: makeMove,
-            [scorePhase]: makeSelection
+        return {
+            [placePhase]: (pos: Position) => makeAsyncHandler(() => makeMove(pos)),
+            [scorePhase]: (pos: Position) => makeHandler(makeSelection(pos))
         }[game.phase];
-
-        return (pos: Position) => makeAsyncHandler(() => handler(pos));
-    }, [game.phase, makeAsyncHandler]);
+    }, [game.phase, makeAsyncHandler, makeHandler]);
     
     return (<>
         <div id="info">
@@ -71,8 +69,8 @@ function GameView({ game: initialGame }: { game: Game }) {
             {game.phase === placePhase && (
                 <button id="randomizeBoard" onClick={makeAsyncHandler(randomizeBoard)}>Randomize</button>
             )}
-            {game.phase === scorePhase && (
-                <button id="groupSelected" onClick={makeHandler(groupSelected)}>Group</button>
+            {game.phase === scorePhase && game.scoring.selected.size > 0 && (
+                <button id="groupSelected" onClick={makeAsyncHandler(() => groupSelected(Array.from(game.scoring.selected.values())))}>Group</button>
             )}
         </div>
         <div id="board">
