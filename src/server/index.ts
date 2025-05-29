@@ -1,13 +1,22 @@
 import express from "express";
 import { NotFoundError } from "./errors";
 import gameRouter from "./routes";
-import morgan from "morgan";
+import morganBody from "morgan-body";
+import cors from "cors";
 
 const app = express();
 const port = 3000;
 
-app.use(morgan('dev'));
+app.use(cors());
 app.use(express.json());
+
+morganBody(app, {
+    logAllReqHeader: true,
+    logAllResHeader: false,
+    logRequestBody: true,
+    logResponseBody: false,
+    prettify: true
+});
 
 app.use("/game", gameRouter);
 
