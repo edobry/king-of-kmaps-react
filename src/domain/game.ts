@@ -166,7 +166,7 @@ export const getWinner = (game: Game): Player | undefined => {
 
 export const placePhaseUpdate: GameUpdate = (game: Game) => {
     game.moveCounter = game.moveCounter + 1;
-    if (game.moveCounter === game.info.size) {
+    if (game.moveCounter >= game.info.size) {
         game.phase = scorePhase as ScorePhase;
     }
 
@@ -176,7 +176,7 @@ export const placePhaseUpdate: GameUpdate = (game: Game) => {
 export const randomizeBoard: GameUpdate = (game: Game) => {
     game.board = makeRandomBoard(game.info.dimensions);
     game.phase = placePhase;
-    game.moveCounter = 31;
+    game.moveCounter = game.info.size - 1;
 
     return placePhaseUpdate(game);
 };
