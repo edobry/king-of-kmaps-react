@@ -1,8 +1,9 @@
-import type { Game, Position } from "../domain/game";
+import { type Game, type Position } from "../domain/game";
+import superjson from "superjson";
 
 const baseUrl = "http://localhost:3000";
 
-const doFetch = async <T>(path: string, method: string, options?: RequestInit) => {
+const doFetch = async (path: string, method: string, options?: RequestInit) => {
     const response = await fetch(`${baseUrl}${path}`, {
         method,
         headers: {
@@ -13,25 +14,33 @@ const doFetch = async <T>(path: string, method: string, options?: RequestInit) =
     if (!response.ok) {
         throw new Error(response.statusText);
     }
-    return response.json() as Promise<T>;
+    return response.text() as Promise<string>;
 };
+
+
+export const superParse = <T>(rawGame: string): T => {
+    const obj = superjson.parse<T>(rawGame);
+    return obj;
+};
+
 
 export const fetchGame = async () => {
     try {
-        return await doFetch<Game>("/game", "GET");
-    } catch {
+        const rawGame = await doFetch("/game", "GET");
+        return superParse<Game>(rawGame);
+    } catch(e) {
         return undefined;
     }
 };
 
 export const initGame = async (numVars: number, { players }: { players: string[] }) =>
-    doFetch<Game>("/game", "POST", { body: JSON.stringify({ numVars, players }) });
+    superParse<Game>(await doFetch("/game", "POST", { body: JSON.stringify({ numVars, players }) }));
 
 export const randomizeBoard = async () =>
-    doFetch<Game>("/game/random", "POST");
+    superParse<Game>(await doFetch("/game/random", "POST"));
 
 export const makeMove = async (pos: Position) =>
-    doFetch<Game>("/game/move", "POST", { body: JSON.stringify({ pos }) });
+    superParse<Game>(await doFetch("/game/move", "POST", { body: JSON.stringify({ pos }) }));
 
 export const makeSelection = async (pos: Position) =>
-    doFetch<Game>("/game/select", "POST", { body: JSON.stringify({ pos }) });
+    superParse<Game>(await doFetch("/game/select", "POST", { body: JSON.stringify({ pos }) }));

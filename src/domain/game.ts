@@ -1,5 +1,6 @@
 import { getAdjacencies, isValidRectangle } from "./adjacency";
 import type { Unary } from "../util/util";
+import { useImmer } from "use-immer";
 
 export type Unset = undefined;
 export type Player = 0 | 1;
