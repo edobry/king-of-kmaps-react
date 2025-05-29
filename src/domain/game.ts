@@ -49,7 +49,13 @@ export type Game = {
 
 export type GameUpdate = Unary<Game>;
 
-export const makeGame = (numVars: number, { players = [], phase = placePhase, currentTurn = 1 }: { players?: string[], phase?: Phase, currentTurn?: Player } = {}): Game => {
+type GameOptions = {
+    players?: string[];
+    phase?: Phase;
+    currentTurn?: Player;
+};
+
+export const makeGame = (numVars: number, { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}): Game => {
     const gameInfo = computeGameInfo(numVars);
 
     return {
@@ -111,13 +117,10 @@ export const computeGameInfo = (numVars: number): GameInfo => {
 export const makeBoard = (
     dimensions: Dimensions,
     getValue: () => CellValue = () => undefined
-) => {
-    return Array.from({ length: dimensions[0] }, () =>
-        Array.from({ length: dimensions[1] }, () =>
-            Array.from({ length: dimensions[2] }, () => getValue())
-        )
-    );
-};
+) => 
+    Array(dimensions[0]).fill(undefined).map(() =>
+        Array(dimensions[1]).fill(undefined).map(() =>
+            Array(dimensions[2]).fill(undefined).map(() => getValue())));
 
 export const makeRandomBoard = (dimensions: Dimensions) => {
     const size = dimensions[0] * dimensions[1] * dimensions[2];

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Unary } from "../../util/util";
+import type { Unary } from "../../util/util";
 
 export const useUpdater = <T>(initialState: T) => {
     const [state, setState] = useState(initialState);
@@ -15,7 +15,11 @@ export const useUpdater = <T>(initialState: T) => {
     return {
         state,
         updater,
-        onClick: (update: Unary<T>) => () => updater(update),
+        makeHandler: (update: Unary<T>) => () => updater(update),
+        makeAsyncHandler: (update: (x: T) => Promise<T>) => async () => {
+            const newState = await update(state);
+            setState(newState);
+        },
         reset: () => setState(initialState),
     };
 };

@@ -1,19 +1,16 @@
-import { Fragment, useMemo } from 'react';
+import React, { Fragment, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, getWinner, groupSelected, makeGame, randomizeBoard, type Player, type Game, makeMove, makeSelection } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, getWinner, groupSelected, type Player, type Game } from '../domain/game';
 import { useUpdater } from './utils/state';
-import './App.css'
-import React from 'react';
+import { makeMove, makeSelection, randomizeBoard } from './api';
 
 const getPlayerName = (game: Game, player: Player) =>
     game.players[player]
         ? `${game.players[player]} (${player})`
         : `Player ${player}`;
 
-function GameView({ numVars, players }: { numVars: number, players: string[] }) {
-    const initialGame = makeGame(numVars, { players });
-    
-    const { state: game, onClick, reset: resetGame } = useUpdater(initialGame);
+function GameView({ game: initialGame }: { game: Game }) {
+    const { state: game, makeHandler, makeAsyncHandler, reset: resetGame } = useUpdater(initialGame);
 
     const cellClick = useMemo<CellClick | undefined>(() => {
         if(game.phase === endPhase) {
@@ -25,12 +22,12 @@ function GameView({ numVars, players }: { numVars: number, players: string[] }) 
             [scorePhase]: makeSelection
         }[game.phase];
 
-        return (pos: Position) => onClick(handler(pos));
-    }, [game.phase, onClick]);
+        return (pos: Position) => makeAsyncHandler(() => handler(pos));
+    }, [game.phase, makeAsyncHandler]);
     
     return (<>
         <div id="info">
-            <b>Variables:</b> {numVars} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
+            <b>Variables:</b> {game.info.vars.length} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
                 `${key} = ${value.join(", ")}`).join(" | ")})<br />
             <b>Grid Size:</b> {game.info.size} ({game.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
             <br />
@@ -72,10 +69,10 @@ function GameView({ numVars, players }: { numVars: number, players: string[] }) 
         <div id="debug-controls">
             <button id="resetGame" onClick={resetGame}>Reset</button>
             {game.phase === placePhase && (
-                <button id="randomizeBoard" onClick={onClick(randomizeBoard)}>Randomize</button>
+                <button id="randomizeBoard" onClick={makeAsyncHandler(randomizeBoard)}>Randomize</button>
             )}
             {game.phase === scorePhase && (
-                <button id="groupSelected" onClick={onClick(groupSelected)}>Group</button>
+                <button id="groupSelected" onClick={makeHandler(groupSelected)}>Group</button>
             )}
         </div>
         <div id="board">

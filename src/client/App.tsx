@@ -1,10 +1,11 @@
-import { Suspense, useCallback, useState } from 'react';
-import './App.css'
-import GameView from './GameView.tsx';
-import React from 'react';
-import { fetchGame } from './api';
+import React, { useCallback, useState, useEffect } from 'react';
+import './App.css';
+import GameView from './GameView';
+import { fetchGame, initGame } from './api';
+import type { Game } from '../domain/game';
 
 type AppState = {
+    game?: Game;
     gameStarted: boolean;
     players: string[];
     numVars: number;
@@ -14,6 +15,7 @@ type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
 function App() {
     const [app, setApp] = useState<AppState>({
+        game: undefined,
         gameStarted: false,
         players: ["Player 1", "Player 2"],
         numVars: 5,
@@ -36,9 +38,7 @@ function App() {
                         Now, you too can experience <b>King of K-Maps!</b>
                         <br /><br />
                     </div>
-                    <Suspense fallback={<div>Loading...</div>}>
-                        <GameStart app={app} appUpdater={appUpdater} />
-                    </Suspense>
+                    <GameStart app={app} appUpdater={appUpdater} />
                     <div id="game-rules">
                         <h2>How to Play</h2>
                         <ol>
@@ -59,13 +59,40 @@ function App() {
                     </div>
                 </div>
             ) : (
-                <GameView numVars={app.numVars} players={app.players} />
+                <GameView game={app.game!} />
             )}
         </div>
     </>);
 }
 
 function GameStart({ app, appUpdater }: { app: AppState, appUpdater: (updater: (app: AppState) => void) => void }) {
+    const [game, setGame] = useState<Game | undefined>(undefined);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        (async () => {
+            setLoading(true);
+            const gameData = await fetchGame();
+            setGame(gameData);
+            setLoading(false);
+        })();
+    }, []);
+
+    const startGame = useCallback(async () => {
+        const gameData = await initGame(app.numVars, { players: app.players }) as Game;
+        appUpdater(app => {
+            app.game = gameData;
+            app.gameStarted = true;
+        });
+    }, [appUpdater, app.numVars, app.players]);
+
+    const continueGame = useCallback(() => {
+        appUpdater(app => {
+            app.game = game;
+            app.gameStarted = true;
+        });
+    }, [appUpdater, game]);
+
     const setNumVars: ChangeHandler = useCallback((e) => {
         appUpdater(app => {
             app.numVars = parseInt(e.target.value)
@@ -78,6 +105,10 @@ function GameStart({ app, appUpdater }: { app: AppState, appUpdater: (updater: (
         ));
     }, [appUpdater]);
 
+    if (loading) {
+        return <div>Loading...</div>;
+    }
+
     return (
         <div id="game-inputs">
             <b>Number of Variables:</b> <input type="number" min={1} max={6} value={app.numVars} onChange={setNumVars} />
@@ -88,8 +119,8 @@ function GameStart({ app, appUpdater }: { app: AppState, appUpdater: (updater: (
                     <input type="text" key={index} onChange={setPlayer(index)} placeholder={`Player ${index + 1}`} />
                 ))}
             </div>
-            <button onClick={() => appUpdater(app => (app.gameStarted = true))}>Start Game</button>
-        
+            <button onClick={startGame}>Start {game ? "New " : ""}Game</button>
+            {game && <button onClick={continueGame}>Continue Game</button>}
         </div>
     )
 }
