@@ -3,7 +3,7 @@ import { getCellClasses } from "../domain/grid";
 
 export type CellClick = (pos: Position) => () => void;
 
-export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Game, cellClick?: CellClick }) {
+export default function Grid({ zPos, game, selected, cellClick }: { zPos: number, game: Game, selected: Map<string, Position>, cellClick?: CellClick }) {
   return (
     <div id={`grid-${zPos}`} className="grid">
       <div className="corner-cell"></div>
@@ -19,7 +19,7 @@ export default function Grid({ zPos, game, cellClick }: { zPos: number, game: Ga
           
           {row.map((cell, xPos) => {
             const pos = [zPos, yPos, xPos] as Position;
-            const classes = ["cell", ...getCellClasses(game, pos)];
+            const classes = ["cell", ...getCellClasses(game, selected, pos)];
 
             return (
               <div key={`grid-${makeCellId(pos)}`} className={classes.join(" ")} onClick={cellClick ? cellClick(pos) : undefined}>

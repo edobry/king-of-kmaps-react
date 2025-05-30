@@ -1,11 +1,15 @@
-import { scorePhase, type Game, placePhase, isSelected, type Position, makeCellId, endPhase, getCell } from "./game";
+import { scorePhase, type Game, placePhase, type Position, makeCellId, endPhase, getCell } from "./game";
 
 export const selectableClass = "selectable";
 export const selectedClass = "selected";
 export const groupedClass = "grouped";
 
+export const isSelected = (selected: Map<string, Position>, pos: Position) =>
+    selected.has(makeCellId(pos));
+
 export const getCellClasses = (
     game: Game,
+    selected: Map<string, Position>,
     pos: Position
 ): string[] => {
     const cell = getCell(game, pos);
@@ -22,7 +26,7 @@ export const getCellClasses = (
             classes.push(groupedClass);
             classes.push(`group-${playerGroup}`);
         } else {
-            if (isSelected(game, pos)) {
+            if (isSelected(selected, pos)) {
                 classes.push(selectedClass);
             }
 

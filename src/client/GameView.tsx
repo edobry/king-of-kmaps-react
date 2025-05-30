@@ -1,8 +1,11 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, getWinner, type Player, type Game, makeSelection } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, getWinner, type Player, type Game, makeCellId } from '../domain/game';
+import { getCell } from '../domain/game';
 import { useUpdater } from './utils/state';
 import { groupSelected, makeMove, randomizeBoard } from './api';
+import { getAdjacencies } from '../domain/adjacency';
+import { isSelected } from '../domain/grid';
 
 const getPlayerName = (game: Game, player: Player) =>
     game.players[player]
@@ -10,7 +13,30 @@ const getPlayerName = (game: Game, player: Player) =>
         : `Player ${player}`;
 
 function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => Promise<void> }) {
-    const { state: game, makeHandler, makeAsyncHandler } = useUpdater(initialGame);
+    const { state: selected, setNewState: setNewSelected, makeHandler: makeSelectedHandler } = useUpdater<Map<string, Position>>(new Map());
+    const { state: game, makeAsyncHandler, setNewState: setNewGame } = useUpdater(initialGame);
+
+    const clearSelection = useCallback(() => {
+        setNewSelected(new Map());
+    }, [setNewSelected]);
+
+    const makeSelection = useCallback((pos: Position) => makeSelectedHandler((prev: Map<string, Position>) => {
+        if (getCell(game, pos) !== game.currentTurn) {
+            return prev;
+        }
+
+        if (isSelected(selected, pos)) {
+            prev.delete(makeCellId(pos));
+            return prev;
+        }
+        
+        if (selected.size !== 0 && !getAdjacencies(game.info, pos).some(adj => isSelected(selected, adj)))
+            return prev;
+
+        prev.set(makeCellId(pos), pos);
+
+        return prev;
+    }), [game, selected, makeSelectedHandler]);
 
     const cellClick = useMemo<CellClick | undefined>(() => {
         if(game.phase === endPhase) {
@@ -19,9 +45,20 @@ function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => P
 
         return {
             [placePhase]: (pos: Position) => makeAsyncHandler(() => makeMove(pos)),
-            [scorePhase]: (pos: Position) => makeHandler(makeSelection(pos))
+            [scorePhase]: (pos: Position) => makeSelection(pos)
         }[game.phase];
-    }, [game.phase, makeAsyncHandler, makeHandler]);
+    }, [game.phase, makeAsyncHandler, makeSelection]);
+
+    const makeGroup = useCallback((async () => {
+        try {
+            const newGame = await groupSelected(Array.from(selected.values()));
+            setNewGame(newGame);
+        } catch (error) {
+            alert((error as Error).message ?? "Unknown error");
+        } finally {
+            clearSelection();
+        }
+    }), [selected, setNewGame, clearSelection]);
     
     return (<>
         <div id="info">
@@ -69,13 +106,13 @@ function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => P
             {game.phase === placePhase && (
                 <button id="randomizeBoard" onClick={makeAsyncHandler(randomizeBoard)}>Randomize</button>
             )}
-            {game.phase === scorePhase && game.scoring.selected.size > 0 && (
-                <button id="groupSelected" onClick={makeAsyncHandler(() => groupSelected(Array.from(game.scoring.selected.values())))}>Group</button>
+            {game.phase === scorePhase && selected.size > 0 && (
+                <button id="groupSelected" onClick={makeGroup}>Group</button>
             )}
         </div>
         <div id="board">
             {game.board.map((_, zPos) => (
-                <Grid key={`grid-${zPos}`} zPos={zPos} game={game} cellClick={cellClick} />
+                <Grid key={`grid-${zPos}`} zPos={zPos} game={game} selected={selected} cellClick={cellClick} />
             ))}
         </div>
     </>);

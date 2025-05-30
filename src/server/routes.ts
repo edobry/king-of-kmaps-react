@@ -1,7 +1,8 @@
-import { groupSelected, makeCellId, makeGame, makeMove, makeSelection, randomizeBoard, type Game } from "../domain/game";
+import { type Game, type Position } from "../domain/game";
 import express from "express";
 import { NotFoundError } from "./errors";
 import superjson from "superjson";
+import { groupSelected, makeGame, makeMove, randomizeBoard } from "../domain/state";
 
 let game: Game | undefined;
 
@@ -96,13 +97,15 @@ router.post("/group", (req: express.Request, res: express.Response) => {
 
     const selected = body.selected as Position[];
     
-    game.scoring.selected = new Map(
-        selected.map(pos => [makeCellId(pos), pos])
-    );
-
-    game = groupSelected(game);
-
-    res.send(superjson.stringify(game));
+    try {
+        game = groupSelected(game, selected);
+        res.send(superjson.stringify(game));
+    } catch (error) {
+        res.status(400).json({
+            status: 400,
+            message: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
 });
 
 router.delete("/", (req: express.Request, res: express.Response) => {

@@ -1,5 +1,5 @@
 import express from "express";
-import { NotFoundError } from "./errors";
+import { type ApiError, NotFoundError } from "./errors";
 import gameRouter from "./routes";
 import morganBody from "morgan-body";
 import cors from "cors";
@@ -40,10 +40,10 @@ const jsonErrorHandler = (
         res.status(500);
     }
 
-    res.json({ 
+    res.json({
         status: res.statusCode,
         message: err.message,
-    });
+    } as ApiError);
 };
 
 app.use(jsonErrorHandler);

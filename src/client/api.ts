@@ -1,4 +1,5 @@
 import { type Game, type Position } from "../domain/game";
+import { type ApiError } from "../server/errors";
 import superjson from "superjson";
 
 const baseUrl = "http://localhost:3000";
@@ -12,7 +13,8 @@ const doFetch = async (path: string, method: string, options?: RequestInit) => {
         ...options,
     });
     if (!response.ok) {
-        throw new Error(response.statusText);
+        const error = await response.json() as ApiError;
+        throw new Error(error.message);
     }
     return response.text() as Promise<string>;
 };
@@ -26,9 +28,8 @@ export const superParse = <T>(rawGame: string): T => {
 
 export const fetchGame = async () => {
     try {
-        const rawGame = await doFetch("/game", "GET");
-        return superParse<Game>(rawGame);
-    } catch(e) {
+        return superParse<Game>(await doFetch("/game", "GET"));
+    } catch {
         return undefined;
     }
 };
