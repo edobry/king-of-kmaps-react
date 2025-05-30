@@ -1,4 +1,3 @@
-import { getAdjacencies } from "./adjacency";
 import type { Unary } from "../util/util";
 import { useImmer } from "use-immer";
 
@@ -40,7 +39,7 @@ export type GameInfo = {
     size: number;
 };
 
-export type Game = {
+export type GameState = {
     info: GameInfo;
     currentTurn: Player;
     board: Board;
@@ -50,7 +49,7 @@ export type Game = {
     players: string[];
 };
 
-export type GameUpdate = Unary<Game>;
+export type GameUpdate = Unary<GameState>;
 
 export type GameOptions = {
     players?: string[];
@@ -120,7 +119,7 @@ export const makeRandomBoard = (dimensions: Dimensions) => {
 
 export const togglePlayer = (player: Player) => player === 0 ? 1 : 0;
 
-export const getWinner = (game: Game): Player | undefined => {
+export const getWinner = (game: GameState): Player | undefined => {
     const player0Groups = game.scoring.groups[0];
     const player1Groups = game.scoring.groups[1];
 
@@ -131,8 +130,20 @@ export const getWinner = (game: Game): Player | undefined => {
     return player0Groups.length < player1Groups.length ? 0 : 1;
 }
 
-export const getCell = (game: Game, [z, x, y]: Position): CellValue =>
+export const getCell = (game: GameState, [z, x, y]: Position): CellValue =>
     game.board[z][x][y];
 
-export const setCell = (game: Game, [z, x, y]: Position, value: CellValue) =>
+export const setCell = (game: GameState, [z, x, y]: Position, value: CellValue) =>
     game.board[z][x][y] = value;
+
+export const placePhaseUpdate: GameUpdate = (game: GameState) => {
+    game.moveCounter = game.moveCounter + 1;
+    if (game.moveCounter >= game.info.size) {
+        game.phase = scorePhase as ScorePhase;
+    }
+
+    return game;
+};
+
+export const toggleTurn = (game: GameState) =>
+    (game.currentTurn = togglePlayer(game.currentTurn));

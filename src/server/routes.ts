@@ -1,18 +1,18 @@
-import { type Game, type Position } from "../domain/game";
+import { type Position } from "../domain/game";
 import express from "express";
 import { NotFoundError } from "./errors";
 import superjson from "superjson";
-import { groupSelected, makeGame, makeMove, randomizeBoard } from "../domain/state";
+import { Game } from "../domain/state";
 
-let game: Game | undefined;
+const game = new Game(undefined);
 
 const router = express.Router();
 
 router.get("/", (_req: express.Request, res: express.Response) => {
-    if (!game)
-        throw new NotFoundError("game not found");
+    if (!game.state)
+        throw new NotFoundError("game not initialized");
 
-    res.send(superjson.stringify(game));
+    res.send(superjson.stringify(game.state));
 });
 
 router.post("/", (req: express.Request, res: express.Response) => {
@@ -42,12 +42,12 @@ router.post("/", (req: express.Request, res: express.Response) => {
         return;
     }
 
-    game = makeGame(body.numVars, {
+    game.initGame(body.numVars, {
         players: body.players,
         phase: body.phase,
         currentTurn: body.currentTurn,
     });
-    res.send(superjson.stringify(game));
+    res.send(superjson.stringify(game.state));
 });
 
 router.post("/random", (req: express.Request, res: express.Response) => {
@@ -55,9 +55,9 @@ router.post("/random", (req: express.Request, res: express.Response) => {
         throw new Error("game not initialized");
     }
 
-    game = randomizeBoard(game);
+    game.randomizeBoard();
 
-    res.send(superjson.stringify(game));
+    res.send(superjson.stringify(game.state));
 });
 
 router.post("/move", (req: express.Request, res: express.Response) => {
@@ -75,9 +75,9 @@ router.post("/move", (req: express.Request, res: express.Response) => {
         throw new Error("game not initialized");
     }
 
-    game = makeMove(game, body.pos);
+    game.makeMove(body.pos);
 
-    res.send(superjson.stringify(game));
+    res.send(superjson.stringify(game.state));
 });
 
 router.post("/group", (req: express.Request, res: express.Response) => {
@@ -98,8 +98,8 @@ router.post("/group", (req: express.Request, res: express.Response) => {
     const selected = body.selected as Position[];
     
     try {
-        game = groupSelected(game, selected);
-        res.send(superjson.stringify(game));
+        game.groupSelected(selected);
+        res.send(superjson.stringify(game.state));
     } catch (error) {
         res.status(400).json({
             status: 400,
@@ -109,7 +109,7 @@ router.post("/group", (req: express.Request, res: express.Response) => {
 });
 
 router.delete("/", (req: express.Request, res: express.Response) => {
-    game = undefined;
+    game.resetGame();
     res.sendStatus(204);
 });
 

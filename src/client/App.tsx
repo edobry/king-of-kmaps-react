@@ -2,11 +2,11 @@ import { useCallback, useState } from 'react';
 import './App.css';
 import GameView from './GameView';
 import GameStart from './GameStart';
-import type { Game } from '../domain/game';
-import { resetGame } from './api';
+import type { GameState } from '../domain/game';
+import api from './api';
 
 export type AppState = {
-    game?: Game;
+    game?: GameState;
     gameStarted: boolean;
     players: string[];
     numVars: number;
@@ -28,7 +28,7 @@ function App() {
         });
     }, []);
 
-    const setGame = useCallback((game: Game | undefined, started: boolean) => {
+    const setGame = useCallback((game: GameState | undefined, started: boolean) => {
         appUpdater((prev) => {
             prev.game = game;
             prev.gameStarted = started;
@@ -68,7 +68,7 @@ function App() {
                 </div>
             ) : (
                 <GameView game={app.game!} newGame={async () => {
-                    await resetGame();
+                    await api.resetGame();
                     setGame(undefined, false);
                 }} />
             )}

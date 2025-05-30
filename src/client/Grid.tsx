@@ -1,9 +1,9 @@
-import { makeCellId, type Game, type Position } from "../domain/game";
+import { makeCellId, type GameState, type Position } from "../domain/game";
 import { getCellClasses } from "../domain/grid";
 
 export type CellClick = (pos: Position) => () => void;
 
-export default function Grid({ zPos, game, selected, cellClick }: { zPos: number, game: Game, selected: Map<string, Position>, cellClick?: CellClick }) {
+export default function Grid({ zPos, game, selected, cellClick }: { zPos: number, game: GameState, selected: Map<string, Position>, cellClick?: CellClick }) {
   return (
     <div id={`grid-${zPos}`} className="grid">
       <div className="corner-cell"></div>

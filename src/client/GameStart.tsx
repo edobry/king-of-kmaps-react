@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { AppState } from "./App";
-import { fetchGame, initGame } from "./api";
-import type { Game } from "../domain/game";
+import api from "./api";
+import type { GameState } from "../domain/game";
 
 type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
@@ -13,14 +13,14 @@ export default function GameStart({
 }: {
     app: AppState;
     appUpdater: (updater: (app: AppState) => void) => void;
-    setGame: (game: Game, started: boolean) => void;
+    setGame: (game: GameState, started: boolean) => void;
 }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         (async () => {
             setLoading(true);
-            const gameData = await fetchGame();
+            const gameData = await api.fetchGame();
             setLoading(false);
             if (gameData) {
                 setGame(gameData, true);
@@ -29,9 +29,9 @@ export default function GameStart({
     }, [setGame]);
 
     const startGame = useCallback(async () => {
-        const gameData = (await initGame(app.numVars, {
+        const gameData = await api.initGame(app.numVars, {
             players: app.players,
-        })) as Game;
+        });
         setGame(gameData, true);
     }, [setGame, app.numVars, app.players]);
 

@@ -1,18 +1,18 @@
 import { Fragment, useCallback, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, getWinner, type Player, type Game, makeCellId } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, getWinner, type Player, type GameState, makeCellId } from '../domain/game';
 import { getCell } from '../domain/game';
 import { useUpdater } from './utils/state';
-import { groupSelected, makeMove, randomizeBoard } from './api';
+import api from './api';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 
-const getPlayerName = (game: Game, player: Player) =>
+const getPlayerName = (game: GameState, player: Player) =>
     game.players[player]
         ? `${game.players[player]} (${player})`
         : `Player ${player}`;
 
-function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => Promise<void> }) {
+function GameView({ game: initialGame, newGame }: { game: GameState, newGame: () => Promise<void> }) {
     const { state: selected, setNewState: setNewSelected, makeHandler: makeSelectedHandler } = useUpdater<Map<string, Position>>(new Map());
     const { state: game, makeAsyncHandler, setNewState: setNewGame } = useUpdater(initialGame);
 
@@ -44,14 +44,14 @@ function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => P
         }
 
         return {
-            [placePhase]: (pos: Position) => makeAsyncHandler(() => makeMove(pos)),
+            [placePhase]: (pos: Position) => makeAsyncHandler(() => api.makeMove(pos)),
             [scorePhase]: (pos: Position) => makeSelection(pos)
         }[game.phase];
     }, [game.phase, makeAsyncHandler, makeSelection]);
 
     const makeGroup = useCallback((async () => {
         try {
-            const newGame = await groupSelected(Array.from(selected.values()));
+            const newGame = await api.groupSelected(Array.from(selected.values()));
             setNewGame(newGame);
         } catch (error) {
             alert((error as Error).message ?? "Unknown error");
@@ -104,7 +104,7 @@ function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => P
         <div id="controls">
             <button id="newGame" onClick={newGame}>New Game</button>
             {game.phase === placePhase && (
-                <button id="randomizeBoard" onClick={makeAsyncHandler(randomizeBoard)}>Randomize</button>
+                <button id="randomizeBoard" onClick={makeAsyncHandler(() => api.randomizeBoard())}>Randomize</button>
             )}
             {game.phase === scorePhase && selected.size > 0 && (
                 <button id="groupSelected" onClick={makeGroup}>Group</button>
@@ -118,7 +118,7 @@ function GameView({ game: initialGame, newGame }: { game: Game, newGame: () => P
     </>);
 }
 
-const Winner = (game: Game) => {
+const Winner = (game: GameState) => {
     const winner = getWinner(game);
     return (
         <>

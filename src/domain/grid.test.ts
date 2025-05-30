@@ -1,17 +1,17 @@
 import { expect, test } from "vitest";
 import { scorePhase, setCell, placePhase, type Position, makeCellId } from "./game";
 import { getCellClasses, selectableClass, selectedClass } from "./grid";
-import { makeGame } from "./state";
+import { initGame } from "./state";
 
 test("getCellClasses: place phase, empty cell is selectable", () => {
-    const game = makeGame(3, { phase: placePhase });
+    const game = initGame(3, { phase: placePhase });
 
     const classes = getCellClasses(game, new Map(), [0, 0, 0]);
     expect(classes).toContain(selectableClass);
 });
 
 test("getCellClasses: place phase, filled cell is not selectable", () => {
-    const game = makeGame(3, { phase: placePhase });
+    const game = initGame(3, { phase: placePhase });
     
     const pos = [0, 0, 0] as Position;
 
@@ -22,7 +22,7 @@ test("getCellClasses: place phase, filled cell is not selectable", () => {
 });
 
 test("getCellClasses: score phase, selected cell is selected", () => {
-    const game = makeGame(3, { phase: scorePhase });
+    const game = initGame(3, { phase: scorePhase });
 
     const pos = [0, 0, 0] as Position;
 
@@ -33,7 +33,7 @@ test("getCellClasses: score phase, selected cell is selected", () => {
 });
 
 test("getCellClasses: score phase, unselected cell is not selected", () => {
-    const game = makeGame(3, { phase: scorePhase });
+    const game = initGame(3, { phase: scorePhase });
 
     const pos = [0, 0, 0] as Position;
 
@@ -44,7 +44,7 @@ test("getCellClasses: score phase, unselected cell is not selected", () => {
 });
 
 test("getCellClasses: score phase, owned cell is selectable", () => {
-    const game = makeGame(3, { phase: scorePhase, currentTurn: 1 });
+    const game = initGame(3, { phase: scorePhase, currentTurn: 1 });
 
     const pos = [0, 0, 0] as Position;
 
@@ -55,7 +55,7 @@ test("getCellClasses: score phase, owned cell is selectable", () => {
 });
 
 test("getCellClasses: score phase, unowned cell is not selectable", () => {
-    const game = makeGame(3, { phase: scorePhase, currentTurn: 1 });
+    const game = initGame(3, { phase: scorePhase, currentTurn: 1 });
 
     const pos = [0, 0, 0] as Position;
 

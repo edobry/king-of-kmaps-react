@@ -1,4 +1,4 @@
-import type { Game, GameInfo, Position } from "./game";
+import type { GameState, GameInfo, Position } from "./game";
 import { makeCellId } from "./game";
 
 export const nextCell = (

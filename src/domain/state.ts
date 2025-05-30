@@ -1,10 +1,56 @@
 import { isValidRectangle } from "./adjacency";
-import type { Game, GameUpdate, Position, ScorePhase } from "./game";
-import { computeGameInfo, endPhase, getCell, makeBoard, makeCellId, makeRandomBoard, placePhase, scorePhase, setCell, togglePlayer, type GameOptions } from "./game";
+import type { GameState, GameUpdate, Position } from "./game";
+import { computeGameInfo, endPhase, getCell, makeBoard, makeCellId, makeRandomBoard, placePhase, placePhaseUpdate, setCell, togglePlayer, toggleTurn, type GameOptions } from "./game";
 
-export const makeGame = (
+export interface GameInterface {
+    makeMove: (pos: Position) => Promise<GameState>;
+    randomizeBoard: () => Promise<GameState>;
+    groupSelected: (selected: Position[]) => Promise<GameState>;
+    resetGame: () => Promise<void>;
+}
+
+export class Game implements GameInterface {
+    constructor(private gameState: GameState | undefined) {}
+
+    get state(): GameState | undefined {
+        return this.gameState;
+    }
+
+    initGame(numVars: number, { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}): GameState {
+        this.gameState = initGame(numVars, { players, phase, currentTurn });
+        return this.gameState;
+    }
+    
+    makeMove(pos: Position): Promise<GameState> {
+        if (!this.state) {
+            throw new Error("Game not initialized");
+        }
+        return Promise.resolve(makeMove(this.state, pos));
+    }
+    
+    randomizeBoard(): Promise<GameState> {
+        if (!this.state) {
+            throw new Error("Game not initialized");
+        }
+        return Promise.resolve(randomizeBoard(this.state));
+    }
+
+    groupSelected(selected: Position[]): Promise<GameState> {
+        if (!this.state) {
+            throw new Error("Game not initialized");
+        }
+        return Promise.resolve(groupSelected(this.state, selected));
+    }
+
+    resetGame(): Promise<void> {
+        this.gameState = undefined;
+        return Promise.resolve(undefined);
+    }
+}
+
+export const initGame = (
     numVars: number, { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {},
-): Game => {
+): GameState => {
     const gameInfo = computeGameInfo(numVars);
 
     return {
@@ -28,19 +74,7 @@ export const makeGame = (
     };
 };
 
-export const placePhaseUpdate: GameUpdate = (game: Game) => {
-    game.moveCounter = game.moveCounter + 1;
-    if (game.moveCounter >= game.info.size) {
-        game.phase = scorePhase as ScorePhase;
-    }
-
-    return game;
-};
-
-export const toggleTurn = (game: Game) =>
-    game.currentTurn = togglePlayer(game.currentTurn);
-
-export const makeMove = (game: Game, pos: Position): Game => {
+export const makeMove = (game: GameState, pos: Position): GameState => {
     if (getCell(game, pos) !== undefined) {
         return game;
     }
@@ -52,7 +86,7 @@ export const makeMove = (game: Game, pos: Position): Game => {
     return placePhaseUpdate(game);
 };
 
-export const randomizeBoard: GameUpdate = (game: Game) => {
+export const randomizeBoard: GameUpdate = (game: GameState) => {
     game.board = makeRandomBoard(game.info.dimensions);
     game.phase = placePhase;
     game.moveCounter = game.info.size - 1;
@@ -60,7 +94,7 @@ export const randomizeBoard: GameUpdate = (game: Game) => {
     return placePhaseUpdate(game);
 };
 
-export const groupSelected = (game: Game, selected: Position[]): Game => {
+export const groupSelected = (game: GameState, selected: Position[]): GameState => {
     if (selected.length === 0)
         return game;
 
