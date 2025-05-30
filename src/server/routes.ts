@@ -75,7 +75,7 @@ router.post("/move", (req: express.Request, res: express.Response) => {
         throw new Error("game not initialized");
     }
 
-    game = makeMove(body.pos)(game);
+    game = makeMove(game, body.pos);
 
     res.send(superjson.stringify(game));
 });

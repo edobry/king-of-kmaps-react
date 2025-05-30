@@ -40,19 +40,17 @@ export const placePhaseUpdate: GameUpdate = (game: Game) => {
 export const toggleTurn = (game: Game) =>
     game.currentTurn = togglePlayer(game.currentTurn);
 
-export const makeMove =
-    (pos: Position): GameUpdate =>
-    (game: Game) => {
-        if (getCell(game, pos) !== undefined) {
-            return game;
-        }
+export const makeMove = (game: Game, pos: Position): Game => {
+    if (getCell(game, pos) !== undefined) {
+        return game;
+    }
 
-        setCell(game, pos, game.currentTurn);
+    setCell(game, pos, game.currentTurn);
 
-        toggleTurn(game);
+    toggleTurn(game);
 
-        return placePhaseUpdate(game);
-    };
+    return placePhaseUpdate(game);
+};
 
 export const randomizeBoard: GameUpdate = (game: Game) => {
     game.board = makeRandomBoard(game.info.dimensions);
@@ -62,7 +60,7 @@ export const randomizeBoard: GameUpdate = (game: Game) => {
     return placePhaseUpdate(game);
 };
 
-export const groupSelected = (game: Game, selected: Position[]) => {
+export const groupSelected = (game: Game, selected: Position[]): Game => {
     if (selected.length === 0)
         return game;
 
@@ -87,15 +85,13 @@ export const groupSelected = (game: Game, selected: Position[]) => {
         game.scoring.cellsToPlayerGroup.set(makeCellId(pos), game.currentTurn)
     );
 
-    toggleTurn(game);
-    if (game.scoring.numCellsGrouped[game.currentTurn] == game.info.size / 2) {
+    const currentPlayerHasUngroupedCells = game.scoring.numCellsGrouped[game.currentTurn] != game.info.size / 2;
+    const nextPlayerHasUngroupedCells = game.scoring.numCellsGrouped[togglePlayer(game.currentTurn)] != game.info.size / 2;
+
+    if (nextPlayerHasUngroupedCells) {
         toggleTurn(game);
-        if (
-            game.scoring.numCellsGrouped[game.currentTurn] ==
-            game.info.size / 2
-        ) {
-            game.phase = endPhase;
-        }
+    } else if (!currentPlayerHasUngroupedCells) {
+        game.phase = endPhase;
     }
 
     return game;
