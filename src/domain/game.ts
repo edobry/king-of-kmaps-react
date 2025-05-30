@@ -11,6 +11,8 @@ export const placePhase = "Place";
 export const scorePhase = "Score";
 export const endPhase = "End";
 
+export const phases = [placePhase, scorePhase, endPhase];
+
 export type PlacePhase = typeof placePhase;
 export type ScorePhase = typeof scorePhase;
 export type EndPhase = typeof endPhase;
