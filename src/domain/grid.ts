@@ -10,13 +10,14 @@ export const isSelected = (selected: Map<string, Position>, pos: Position) =>
 export const getCellClasses = (
     game: GameModel,
     selected: Map<string, Position>,
-    pos: Position
+    pos: Position,
+    isPending: boolean
 ): string[] => {
     const cell = game.getCell(pos);
     
     const classes: string[] = [];
 
-    if (game.phase === placePhase) {
+    if (game.phase === placePhase && !isPending) {
         if (cell === null) {
             classes.push(selectableClass);
         }
@@ -30,7 +31,7 @@ export const getCellClasses = (
                 classes.push(selectedClass);
             }
 
-            if (cell === game.currentTurn) {
+            if (cell === game.currentTurn && !isPending) {
                 classes.push(selectableClass);
             }
         }
