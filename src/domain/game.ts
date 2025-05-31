@@ -87,8 +87,7 @@ export class GameModel {
             phase,
             currentTurn,
             board: makeBoard(computeGameInfo(numVars).dimensions),
-            moveCounter: 0,
-            scoring_groups: { 0: [], 1: [] },
+            moveCounter: 0
         });
     }
 
