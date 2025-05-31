@@ -208,6 +208,7 @@ superjson.registerCustom<GameModel, string>(
     },
     "game.js"
 );
+
 export class GameModelInterface implements GameInterface {
     constructor(private gameModel: GameModel | undefined) {}
 

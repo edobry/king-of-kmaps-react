@@ -17,7 +17,7 @@ export const getCellClasses = (
     const classes: string[] = [];
 
     if (game.phase === placePhase) {
-        if (cell === undefined) {
+        if (cell === null) {
             classes.push(selectableClass);
         }
     } else if (game.phase === scorePhase || game.phase === endPhase) {

@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
-import { computeGameInfo } from "./game";
-import type { Dimensions, Position } from "./game";
+import { computeGameInfo, scorePhase, type Dimensions, type Position, placePhase, GameModel } from "./game";
 import { getAdjacencies, isValidRectangle } from "./adjacency";
 
 test("computeGameInfo: <= 6 vars", () => {
@@ -165,4 +164,87 @@ test("isValidRectangle: incomplete rectangle with gap", () => {
     // Missing [0, 1, 1] to complete the 2x2 rectangle
     const selection: Position[] = [[0, 0, 0], [0, 0, 1], [0, 1, 0]];
     expect(isValidRectangle(info, selection)).toBe(false);
+});
+
+
+test("groupSelected: empty selection", () => {
+    const game = GameModel.initGame(3, { phase: scorePhase });
+    expect(game.groupSelected([])).toEqual(game);
+});
+
+test("groupSelected: unowned cell not groupable", () => {
+    const game = GameModel.initGame(3, { phase: scorePhase, currentTurn: 1 });
+    game.setCell([0, 0, 1], 0);
+    game.setCell([0, 0, 0], 1);
+    expect(() => game.groupSelected([[0, 0, 1]])).toThrow();
+});
+
+test("groupSelected: owned single cell groupable", () => {
+    const game = GameModel.initGame(3, { phase: scorePhase, currentTurn: 1 });
+    const pos = [0, 0, 0] as Position;
+    game.setCell(pos, 1);
+    expect(game.groupSelected([pos]).scoring.groups[1]).toEqual([[pos]]);
+});
+
+test("groupSelected: selection size must be a power of two", () => {
+    const game = GameModel.initGame(3, { phase: scorePhase, currentTurn: 1 });
+    const selection = [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+    ] as Position[];
+    game.setCell(selection[0], 1);
+    game.setCell(selection[1], 1);
+    game.setCell(selection[2], 1);
+    expect(() => game.groupSelected(selection)).toThrow();
+
+    selection.push([0, 0, 3]);
+    game.setCell(selection[3], 1);
+    expect(game.groupSelected(selection).scoring.groups[1]).toEqual([
+        selection,
+    ]);
+});
+
+test("groupSelected: turn toggled if next player has ungrouped cells", () => {
+    const game = GameModel.initGame(3, { phase: scorePhase, currentTurn: 1 });
+    const selection = [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+    ] as Position[];
+    game.setCell(selection[0], 1);
+    game.setCell(selection[1], 1);
+    game.setCell(selection[2], 1);
+    game.setCell(selection[3], 1);
+    expect(game.groupSelected(selection).currentTurn).toEqual(0);
+});
+
+test("groupSelected: turn not toggled if next player has no ungrouped cells", () => {
+    const game = GameModel.initGame(3, { phase: placePhase, currentTurn: 1 });
+
+    const player1Cells = [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+    ] as Position[];
+
+    const player0Cells = [
+        [0, 1, 0],
+        [0, 1, 1],
+        [0, 1, 2],
+        [0, 1, 3],
+    ] as Position[];
+
+    player1Cells.forEach((cell) => game.setCell(cell, 1));
+    player0Cells.forEach((cell) => game.setCell(cell, 0));
+
+    game.phase = scorePhase;
+
+    game.groupSelected(player1Cells);
+
+    expect(
+        game.groupSelected([player0Cells[0], player0Cells[1]]).currentTurn
+    ).toEqual(0);
 });
