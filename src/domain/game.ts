@@ -1,7 +1,11 @@
+import type { InsertGame, SelectGame } from "../server/schema";
 import type { Unary } from "../util/util";
 import { useImmer } from "use-immer";
+import { isValidRectangle } from "./adjacency";
+import type { GameInterface } from "./state";
+import superjson from "superjson";
 
-export type Unset = undefined;
+export type Unset = null;
 export type Player = 0 | 1;
 export type CellValue = Player | Unset;
 export type Board = CellValue[][][];
@@ -17,6 +21,25 @@ export type ScorePhase = typeof scorePhase;
 export type EndPhase = typeof endPhase;
 export type Phase = PlacePhase | ScorePhase | EndPhase;
 
+export const dims = ["x", "y", "z"] as const;
+export type Dimensions = [number, number, number];
+export type Position = Dimensions;
+
+export type GameUpdate = Unary<GameModel>;
+
+export type GameOptions = {
+    players?: string[];
+    phase?: Phase;
+    currentTurn?: Player;
+};
+
+export type GameInfo = {
+    numVars: number;
+    vars: Record<typeof dims[number], string[]>;
+    dimensions: Dimensions;
+    size: number;
+};
+
 export type ScoringState = {
     groups: {
         [key in Player]: Position[][];
@@ -27,34 +50,227 @@ export type ScoringState = {
     };
 };
 
-export const makeCellId = (pos: Position) => pos.map(p => p.toString()).join(",");
-
-export const dims = ["x", "y", "z"] as const;
-export type Dimensions = [number, number, number];
-export type Position = Dimensions;
-
-export type GameInfo = {
-    vars: { [key: string]: string[] };
-    dimensions: Dimensions;
-    size: number;
-};
-
-export type GameState = {
-    info: GameInfo;
-    currentTurn: Player;
-    board: Board;
+export class GameModel {
+    id?: number;
+    players: string[];
     phase: Phase;
     moveCounter: number;
+    currentTurn: Player;
+    board: Board;
     scoring: ScoringState;
-    players: string[];
-};
+    info: GameInfo;
 
-export type GameUpdate = Unary<GameState>;
+    constructor(gameRecord: InsertGame) {
+        this.id = gameRecord.id ?? undefined;
 
-export type GameOptions = {
-    players?: string[];
-    phase?: Phase;
-    currentTurn?: Player;
+        this.info = computeGameInfo(gameRecord.numVars);
+
+        this.currentTurn = gameRecord.currentTurn as Player;
+        this.board = gameRecord.board ?? makeBoard(this.info.dimensions);
+        this.phase = gameRecord.phase as Phase;
+        this.moveCounter = gameRecord.moveCounter;
+        this.players = [gameRecord.player1, gameRecord.player2];
+
+        this.scoring = computeScoringState(
+            gameRecord.scoring_groups ?? { 0: [], 1: [] }
+        );
+    }
+
+    static initGame(
+        numVars: number,
+        { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}
+    ): GameModel {
+        return new GameModel({
+            numVars,
+            player1: players[0],
+            player2: players[1],
+            phase,
+            currentTurn,
+            board: makeBoard(computeGameInfo(numVars).dimensions),
+            moveCounter: 0,
+            scoring_groups: { 0: [], 1: [] },
+        });
+    }
+
+    toRecord(): InsertGame {
+        return {
+            id: this.id,
+            currentTurn: this.currentTurn,
+            board: this.board,
+            phase: this.phase,
+            moveCounter: this.moveCounter,
+            scoring_groups: this.scoring.groups,
+            player1: this.players[0],
+            player2: this.players[1],
+            numVars: this.info.numVars,
+        };
+    }
+
+    getCell([z, x, y]: Position): CellValue {
+        return this.board[z][x][y];
+    }
+
+    setCell([z, x, y]: Position, value: CellValue) {
+        this.board[z][x][y] = value;
+    }
+
+    toggleTurn() {
+        this.currentTurn = togglePlayer(this.currentTurn);
+    }
+
+    makeMove(pos: Position): GameModel {
+        if (this.getCell(pos) !== null) {
+            return this;
+        }
+
+        this.setCell(pos, this.currentTurn);
+        this.toggleTurn();
+
+        return this.placePhaseUpdate();
+    }
+
+    randomizeBoard() {
+        this.board = makeRandomBoard(this.info.dimensions);
+        this.phase = placePhase;
+        this.moveCounter = this.info.size - 1;
+
+        return this.placePhaseUpdate();
+    }
+
+    placePhaseUpdate() {
+        this.moveCounter = this.moveCounter + 1;
+        if (this.moveCounter >= this.info.size) {
+            this.phase = scorePhase as ScorePhase;
+        }
+
+        return this;
+    }
+
+    groupSelected(selected: Position[]): GameModel {
+        if (selected.length === 0) return this;
+
+        if (selected.some((pos) => this.getCell(pos) !== this.currentTurn)) {
+            throw new Error("Invalid selection: cannot group unowned cells");
+        }
+
+        if (
+            selected.length > 1 &&
+            !Number.isInteger(Math.log2(selected.length))
+        ) {
+            throw new Error("Invalid selection: not a power of two");
+        }
+
+        if (!isValidRectangle(this.info, selected)) {
+            throw new Error("Invalid selection: not a rectangle");
+        }
+
+        this.scoring.groups[this.currentTurn].push(selected);
+        this.scoring.numCellsGrouped[this.currentTurn] += selected.length;
+        selected.forEach((pos) =>
+            this.scoring.cellsToPlayerGroup.set(
+                makeCellId(pos),
+                this.currentTurn
+            )
+        );
+
+        const currentPlayerHasUngroupedCells =
+            this.scoring.numCellsGrouped[this.currentTurn] !=
+            this.info.size / 2;
+        const nextPlayerHasUngroupedCells =
+            this.scoring.numCellsGrouped[togglePlayer(this.currentTurn)] !=
+            this.info.size / 2;
+
+        if (nextPlayerHasUngroupedCells) {
+            this.toggleTurn();
+        } else if (!currentPlayerHasUngroupedCells) {
+            this.phase = endPhase;
+        }
+
+        return this;
+    };
+
+    getWinner(): Player | undefined {
+        const player0Groups = this.scoring.groups[0];
+        const player1Groups = this.scoring.groups[1];
+
+        if (player1Groups.length === player0Groups.length) {
+            return undefined;
+        }
+
+        return player0Groups.length < player1Groups.length ? 0 : 1;
+    }
+}
+
+superjson.registerCustom<GameModel, string>(
+    {
+        isApplicable: (v): v is GameModel => v instanceof GameModel,
+        serialize: (v) => superjson.stringify(v.toRecord()),
+        deserialize: (v) => new GameModel(superjson.parse(v) as SelectGame),
+    },
+    "game.js"
+);
+export class GameModelInterface implements GameInterface {
+    constructor(private gameModel: GameModel | undefined) {}
+
+    initGame(
+        numVars: number,
+        { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}
+    ): Promise<GameModel> {
+        return Promise.resolve(
+            GameModel.initGame(numVars, { players, phase, currentTurn })
+        );
+    }
+
+    makeMove(pos: Position): Promise<GameModel> {
+        if (!this.gameModel) {
+            throw new Error("Game not initialized");
+        }
+        return Promise.resolve(this.gameModel.makeMove(pos));
+    }
+
+    randomizeBoard(): Promise<GameModel> {
+        if (!this.gameModel) {
+            throw new Error("Game not initialized");
+        }
+        return Promise.resolve(this.gameModel.randomizeBoard());
+    }
+
+    groupSelected(selected: Position[]): Promise<GameModel> {
+        if (!this.gameModel) {
+            throw new Error("Game not initialized");
+        }
+        return Promise.resolve(this.gameModel.groupSelected(selected));
+    }
+
+    resetGame(): Promise<void> {
+        this.gameModel = undefined;
+        return Promise.resolve(undefined);
+    }
+}
+
+export const makeCellId = (pos: Position) =>
+    pos.map((p) => p.toString()).join(",");
+
+const computeScoringState = (groups: { [key in Player]: Position[][] }): ScoringState => {
+    return Object.entries(groups ?? {}).reduce((scoring, [player, groups]) => {
+        const playerId = parseInt(player) as Player;
+
+        groups.forEach((group) => {
+            group.forEach((pos) =>
+                scoring.cellsToPlayerGroup.set(makeCellId(pos), playerId));
+
+            scoring.numCellsGrouped[playerId] += group.length;
+        });
+
+        return scoring;
+    }, {
+        groups,
+        cellsToPlayerGroup: new Map<string, Player>(),
+        numCellsGrouped: {
+            0: 0,
+            1: 0,
+        },
+    });
 };
 
 export const computeGameInfo = (numVars: number): GameInfo => {
@@ -78,11 +294,12 @@ export const computeGameInfo = (numVars: number): GameInfo => {
     const varMap = dims.reduce((acc, curr, i) => {
         acc[curr] = vars[i] || [];
         return acc;
-    }, {} as { [key: string]: string[] });
+    }, {} as Record<typeof dims[number], string[]>);
 
     const dimensions = Object.values(varMap).reverse().map(v => Math.pow(2, v.length)) as Dimensions;
 
     return {
+        numVars: numVars,
         vars: varMap,
         dimensions,
         size: dimensions.reduce((acc, curr) => acc * curr, 1)
@@ -91,11 +308,11 @@ export const computeGameInfo = (numVars: number): GameInfo => {
 
 export const makeBoard = (
     dimensions: Dimensions,
-    getValue: () => CellValue = () => undefined
+    getValue: () => CellValue = () => null
 ) => 
-    Array(dimensions[0]).fill(undefined).map(() =>
-        Array(dimensions[1]).fill(undefined).map(() =>
-            Array(dimensions[2]).fill(undefined).map(() => getValue())));
+    Array(dimensions[0]).fill(null).map(() =>
+        Array(dimensions[1]).fill(null).map(() =>
+            Array(dimensions[2]).fill(null).map(() => getValue())));
 
 export const makeRandomBoard = (dimensions: Dimensions) => {
     const size = dimensions[0] * dimensions[1] * dimensions[2];
@@ -118,32 +335,3 @@ export const makeRandomBoard = (dimensions: Dimensions) => {
 };
 
 export const togglePlayer = (player: Player) => player === 0 ? 1 : 0;
-
-export const getWinner = (game: GameState): Player | undefined => {
-    const player0Groups = game.scoring.groups[0];
-    const player1Groups = game.scoring.groups[1];
-
-    if (player1Groups.length === player0Groups.length) {
-        return undefined;
-    }
-
-    return player0Groups.length < player1Groups.length ? 0 : 1;
-}
-
-export const getCell = (game: GameState, [z, x, y]: Position): CellValue =>
-    game.board[z][x][y];
-
-export const setCell = (game: GameState, [z, x, y]: Position, value: CellValue) =>
-    game.board[z][x][y] = value;
-
-export const placePhaseUpdate: GameUpdate = (game: GameState) => {
-    game.moveCounter = game.moveCounter + 1;
-    if (game.moveCounter >= game.info.size) {
-        game.phase = scorePhase as ScorePhase;
-    }
-
-    return game;
-};
-
-export const toggleTurn = (game: GameState) =>
-    (game.currentTurn = togglePlayer(game.currentTurn));

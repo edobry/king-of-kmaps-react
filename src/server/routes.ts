@@ -1,21 +1,20 @@
-import { type Position } from "../domain/game";
+import { GameModel, type Position, GameModelInterface } from "../domain/game";
 import express from "express";
 import { NotFoundError } from "./errors";
 import superjson from "superjson";
-import { Game } from "../domain/state";
-
-const game = new Game(undefined);
+import gameDb from "./db";
 
 const router = express.Router();
 
-router.get("/", (_req: express.Request, res: express.Response) => {
-    if (!game.state)
+router.get("/", async (_req: express.Request, res: express.Response) => {
+    const game = await gameDb.getGame();
+    if (!game)
         throw new NotFoundError("game not initialized");
-
-    res.send(superjson.stringify(game.state));
+    
+    res.send(superjson.stringify(game));
 });
 
-router.post("/", (req: express.Request, res: express.Response) => {
+router.post("/", async (req: express.Request, res: express.Response) => {
     const body = req.body;
 
     if (!body) {
@@ -42,25 +41,32 @@ router.post("/", (req: express.Request, res: express.Response) => {
         return;
     }
 
-    game.initGame(body.numVars, {
+    const gameModel = GameModel.initGame(body.numVars, {
         players: body.players,
         phase: body.phase,
         currentTurn: body.currentTurn,
     });
-    res.send(superjson.stringify(game.state));
+
+    await gameDb.deleteGame();
+    await gameDb.setGame(gameModel);
+
+    res.send(superjson.stringify(gameModel));
 });
 
-router.post("/random", (req: express.Request, res: express.Response) => {
+router.post("/random", async (req: express.Request, res: express.Response) => {
+    const game = await gameDb.getGame();
+
     if (!game) {
         throw new Error("game not initialized");
     }
 
-    game.randomizeBoard();
+    const gameModel = game.randomizeBoard();
+    await gameDb.setGame(gameModel);
 
-    res.send(superjson.stringify(game.state));
+    res.send(superjson.stringify(gameModel));
 });
 
-router.post("/move", (req: express.Request, res: express.Response) => {
+router.post("/move", async (req: express.Request, res: express.Response) => {
     const body = req.body;
 
     if (!body) {
@@ -71,16 +77,19 @@ router.post("/move", (req: express.Request, res: express.Response) => {
         throw new Error("you must send a position");
     }
 
+    const game = await gameDb.getGame();
+
     if (!game) {
         throw new Error("game not initialized");
     }
 
-    game.makeMove(body.pos);
+    const gameModel = game.makeMove(body.pos);
+    await gameDb.setGame(gameModel);
 
-    res.send(superjson.stringify(game.state));
+    res.send(superjson.stringify(gameModel));
 });
 
-router.post("/group", (req: express.Request, res: express.Response) => {
+router.post("/group", async (req: express.Request, res: express.Response) => {
     const body = req.body;
     
     if (!body) {
@@ -91,6 +100,8 @@ router.post("/group", (req: express.Request, res: express.Response) => {
         throw new Error("you must send a selection");
     }
 
+    const game = await gameDb.getGame();
+
     if (!game) {
         throw new Error("game not initialized");
     }
@@ -99,7 +110,8 @@ router.post("/group", (req: express.Request, res: express.Response) => {
     
     try {
         game.groupSelected(selected);
-        res.send(superjson.stringify(game.state));
+        await gameDb.setGame(game);
+        res.send(superjson.stringify(game));
     } catch (error) {
         res.status(400).json({
             status: 400,
@@ -108,8 +120,8 @@ router.post("/group", (req: express.Request, res: express.Response) => {
     }
 });
 
-router.delete("/", (req: express.Request, res: express.Response) => {
-    game.resetGame();
+router.delete("/", async (req: express.Request, res: express.Response) => {
+    await gameDb.deleteGame();
     res.sendStatus(204);
 });
 

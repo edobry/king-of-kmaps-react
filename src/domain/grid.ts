@@ -1,4 +1,4 @@
-import { scorePhase, type GameState, placePhase, type Position, makeCellId, endPhase, getCell } from "./game";
+import { scorePhase, type GameModel, placePhase, type Position, makeCellId, endPhase } from "./game";
 
 export const selectableClass = "selectable";
 export const selectedClass = "selected";
@@ -8,11 +8,11 @@ export const isSelected = (selected: Map<string, Position>, pos: Position) =>
     selected.has(makeCellId(pos));
 
 export const getCellClasses = (
-    game: GameState,
+    game: GameModel,
     selected: Map<string, Position>,
     pos: Position
 ): string[] => {
-    const cell = getCell(game, pos);
+    const cell = game.getCell(pos);
     
     const classes: string[] = [];
 

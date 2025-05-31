@@ -1,4 +1,4 @@
-import { type GameState, type Position } from "../domain/game";
+import { type GameModel, type GameOptions, type Position } from "../domain/game";
 import type { GameInterface } from "../domain/state";
 import { type ApiError } from "../server/errors";
 import superjson from "superjson";
@@ -8,7 +8,7 @@ export const superParse = <T>(raw: string): T => {
     return obj;
 };
 
-class GameApi implements GameInterface {
+class RemoteGameInterface implements GameInterface {
     private baseUrl: string;
 
     constructor(baseUrl: string) {
@@ -32,14 +32,14 @@ class GameApi implements GameInterface {
 
     async fetchGame() {
         try {
-            return superParse<GameState>(await this.doFetch("/game", "GET"));
+            return superParse<GameModel>(await this.doFetch("/game", "GET"));
         } catch (error) {
             return undefined;
         }
     }
 
-    async initGame(numVars: number, { players }: { players: string[] }) {
-        return superParse<GameState>(
+    async initGame(numVars: number, { players = [] }: GameOptions = {}) {
+        return superParse<GameModel>(
             await this.doFetch("/game", "POST", {
                 body: JSON.stringify({ numVars, players }),
             })
@@ -47,18 +47,19 @@ class GameApi implements GameInterface {
     }
 
     async randomizeBoard() {
-        return superParse<GameState>(await this.doFetch("/game/random", "POST"));
+        return superParse<GameModel>(await this.doFetch("/game/random", "POST"));
     }
 
     async makeMove(pos: Position) {
-        return superParse<GameState>(
+        return superParse<GameModel>(
             await this.doFetch("/game/move", "POST", {
                 body: JSON.stringify({ pos }),
             })
         );
     }
+    
     async groupSelected(selected: Position[]) {
-        return superParse<GameState>(
+        return superParse<GameModel>(
             await this.doFetch("/game/group", "POST", {
                 body: JSON.stringify({ selected }),
             })
@@ -70,4 +71,4 @@ class GameApi implements GameInterface {
 }
 
 const baseUrl = "http://localhost:3000";
-export default new GameApi(baseUrl);
+export default new RemoteGameInterface(baseUrl);

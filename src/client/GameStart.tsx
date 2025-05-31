@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { AppState } from "./App";
 import api from "./api";
-import type { GameState } from "../domain/game";
+import type { GameModel } from "../domain/game";
 
 type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
@@ -13,7 +13,7 @@ export default function GameStart({
 }: {
     app: AppState;
     appUpdater: (updater: (app: AppState) => void) => void;
-    setGame: (game: GameState, started: boolean) => void;
+    setGame: (game: GameModel, started: boolean) => void;
 }) {
     const [loading, setLoading] = useState(true);
 

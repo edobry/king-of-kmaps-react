@@ -1,18 +1,17 @@
 import { Fragment, useCallback, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, getWinner, type Player, type GameState, makeCellId } from '../domain/game';
-import { getCell } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, type Player, type GameModel, makeCellId } from '../domain/game';
 import { useUpdater } from './utils/state';
 import api from './api';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 
-const getPlayerName = (game: GameState, player: Player) =>
+const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
         ? `${game.players[player]} (${player})`
         : `Player ${player}`;
 
-function GameView({ game: initialGame, newGame }: { game: GameState, newGame: () => Promise<void> }) {
+function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
     const { state: selected, setNewState: setNewSelected, makeHandler: makeSelectedHandler } = useUpdater<Map<string, Position>>(new Map());
     const { state: game, makeAsyncHandler, setNewState: setNewGame } = useUpdater(initialGame);
 
@@ -21,7 +20,7 @@ function GameView({ game: initialGame, newGame }: { game: GameState, newGame: ()
     }, [setNewSelected]);
 
     const makeSelection = useCallback((pos: Position) => makeSelectedHandler((prev: Map<string, Position>) => {
-        if (getCell(game, pos) !== game.currentTurn) {
+        if (game.getCell(pos) !== game.currentTurn) {
             return prev;
         }
 
@@ -62,7 +61,7 @@ function GameView({ game: initialGame, newGame }: { game: GameState, newGame: ()
     
     return (<>
         <div id="info">
-            <b>Variables:</b> {game.info.vars.length} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
+            <b>Variables:</b> {game.info.numVars} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
                 `${key} = ${value.join(", ")}`).join(" | ")})<br />
             <b>Grid Size:</b> {game.info.size} ({game.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
             <br />
@@ -118,8 +117,8 @@ function GameView({ game: initialGame, newGame }: { game: GameState, newGame: ()
     </>);
 }
 
-const Winner = (game: GameState) => {
-    const winner = getWinner(game);
+const Winner = (game: GameModel) => {
+    const winner = game.getWinner();
     return (
         <>
             <br />
