@@ -5,6 +5,13 @@ import type { GameInterface } from "./state";
 import superjson from "superjson";
 import { create } from "mutative";
 
+// Reusable mutative configuration for GameModel immutability
+const GAME_MODEL_MARK_CONFIG = {
+    mark: (target: any) => {
+        if (target instanceof GameModel) return 'immutable';
+    }
+};
+
 export type Unset = null;
 export type Player = 0 | 1;
 export type CellValue = Player | Unset;
@@ -155,11 +162,7 @@ export class GameModel {
             if (draft.moveCounter >= this.info.size) {
                 draft.phase = scorePhase as ScorePhase;
             }
-        }, {
-            mark: (target) => {
-                if (target instanceof GameModel) return 'immutable';
-            }
-        });
+        }, GAME_MODEL_MARK_CONFIG);
     }
 
     randomizeBoard(): GameModel {
@@ -167,11 +170,7 @@ export class GameModel {
             draft.board = makeRandomBoard(this.info.dimensions);
             draft.moveCounter = this.info.size;
             draft.phase = scorePhase as ScorePhase;
-        }, {
-            mark: (target) => {
-                if (target instanceof GameModel) return 'immutable';
-            }
-        });
+        }, GAME_MODEL_MARK_CONFIG);
     }
 
     groupSelected(selected: Position[]): GameModel {
@@ -218,11 +217,7 @@ export class GameModel {
             } else if (!currentPlayerHasUngroupedCells) {
                 draft.phase = endPhase;
             }
-        }, {
-            mark: (target) => {
-                if (target instanceof GameModel) return 'immutable';
-            }
-        });
+        }, GAME_MODEL_MARK_CONFIG);
     }
 
     getWinner(): Player | undefined {
