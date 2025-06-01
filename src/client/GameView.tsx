@@ -185,8 +185,6 @@ const useOptimisticAction = (setNewGame: (game: GameModel) => void, getCurrentGa
             const serverResult = await apiCall();
             setNewGame(serverResult);
         } catch (error) {
-            console.error("Server validation failed:", error);
-            
             // Rollback to original state
             setNewGame(originalGame);
             
