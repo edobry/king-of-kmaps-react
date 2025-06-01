@@ -2,6 +2,8 @@ import React, { useEffect, useState, Fragment, useMemo } from "react";
 import Grid, { type CellClick } from './Grid';
 import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId } from '../domain/game';
 import { OptimisticStateManager, makeMove, groupSelected, randomizeBoard } from "./utils/state";
+import { getAdjacencies } from '../domain/adjacency';
+import { isSelected } from '../domain/grid';
 import api from "./api";
 
 const getPlayerName = (game: GameModel, player: Player) =>
@@ -156,23 +158,56 @@ export const GameView: React.FC = () => {
     const handleCellClick = async (pos: Position) => {
         if (!game) return;
 
-        try {
-            setIsPending(true);
-            if (game.phase === placePhase) {
+        if (game.phase === placePhase) {
+            try {
+                setIsPending(true);
                 const moveAction = makeMove(pos);
                 await stateManager.executeAction(moveAction.action, moveAction.serverCall);
-            } else if (game.phase === scorePhase) {
-                const newSelected = selected.some(p => 
-                    p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2]
-                ) 
-                    ? selected.filter(p => !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2]))
-                    : [...selected, pos];
-                setSelected(newSelected);
+            } catch (error) {
+                console.error("Action failed:", error);
+            } finally {
+                setIsPending(false);
             }
-        } catch (error) {
-            console.error("Action failed:", error);
-        } finally {
-            setIsPending(false);
+        } else if (game.phase === scorePhase) {
+            // Handle selection logic without setting pending state
+            const cellValue = game.getCell(pos);
+            
+            // Only allow selecting cells owned by current player
+            if (cellValue !== game.currentTurn) {
+                return;
+            }
+
+            // Check if cell is already grouped
+            if (game.scoring.cellsToPlayerGroup.has(makeCellId(pos))) {
+                return;
+            }
+
+            const selectedMap = new Map<string, Position>();
+            selected.forEach(p => selectedMap.set(makeCellId(p), p));
+
+            const isCurrentlySelected = isSelected(selectedMap, pos);
+
+            if (isCurrentlySelected) {
+                // Deselect the cell
+                const newSelected = selected.filter(p => 
+                    !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
+                );
+                setSelected(newSelected);
+            } else {
+                // Select the cell - check adjacency if we already have selections
+                if (selected.length > 0) {
+                    const adjacencies = getAdjacencies(game.info, pos);
+                    const isAdjacentToSelection = adjacencies.some(adj => 
+                        isSelected(selectedMap, adj)
+                    );
+                    
+                    if (!isAdjacentToSelection) {
+                        return; // Not adjacent, can't select
+                    }
+                }
+                
+                setSelected([...selected, pos]);
+            }
         }
     };
 
