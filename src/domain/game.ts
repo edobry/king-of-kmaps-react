@@ -3,6 +3,7 @@ import type { Unary } from "../util/util";
 import { isValidRectangle } from "./adjacency";
 import type { GameInterface } from "./state";
 import superjson from "superjson";
+import { create } from "mutative";
 
 export type Unset = null;
 export type Player = 0 | 1;
@@ -142,87 +143,87 @@ export class GameModel {
     }
 
     makeMove(pos: Position): GameModel {
-        if (!isValidMove(this, pos)) {
-            return this;
-        }
+        return create(this, draft => {
+            if (!isValidMove(this, pos)) {
+                return;
+            }
 
-        this.setCell(pos, this.currentTurn);
-        this.toggleTurn();
-
-        return this.placePhaseUpdate();
+            draft.board[pos[0]][pos[1]][pos[2]] = draft.currentTurn;
+            draft.currentTurn = togglePlayer(draft.currentTurn);
+            draft.moveCounter = draft.moveCounter + 1;
+            
+            if (draft.moveCounter >= this.info.size) {
+                draft.phase = scorePhase as ScorePhase;
+            }
+        }, {
+            mark: (target) => {
+                if (target instanceof GameModel) return 'immutable';
+            }
+        });
     }
 
-    randomizeBoard() {
-        this.board = makeRandomBoard(this.info.dimensions);
-        this.phase = placePhase;
-        this.moveCounter = this.info.size - 1;
-
-        return this.placePhaseUpdate();
-    }
-
-    placePhaseUpdate() {
-        this.moveCounter = this.moveCounter + 1;
-        if (this.moveCounter >= this.info.size) {
-            this.phase = scorePhase as ScorePhase;
-        }
-
-        return this;
+    randomizeBoard(): GameModel {
+        return create(this, draft => {
+            draft.board = makeRandomBoard(this.info.dimensions);
+            draft.phase = placePhase;
+            draft.moveCounter = this.info.size - 1;
+            
+            if (draft.moveCounter >= this.info.size) {
+                draft.phase = scorePhase as ScorePhase;
+            }
+        }, {
+            mark: (target) => {
+                if (target instanceof GameModel) return 'immutable';
+            }
+        });
     }
 
     groupSelected(selected: Position[]): GameModel {
-        if (selected.length === 0) return this;
+        return create(this, draft => {
+            // Validation using original instance (this.method())
+            if (selected.length === 0) return;
 
-        if (selected.some((pos) => this.getCell(pos) !== this.currentTurn)) {
-            throw new Error("Invalid selection: cannot group unowned cells");
-        }
+            if (selected.some((pos) => this.getCell(pos) !== this.currentTurn)) {
+                throw new Error("Invalid selection: cannot group unowned cells");
+            }
 
-        if (
-            selected.length > 1 &&
-            !Number.isInteger(Math.log2(selected.length))
-        ) {
-            throw new Error("Invalid selection: not a power of two");
-        }
+            if (selected.length > 1 && !Number.isInteger(Math.log2(selected.length))) {
+                throw new Error("Invalid selection: not a power of two");
+            }
 
-        if (!isValidRectangle(this.info, selected)) {
-            throw new Error("Invalid selection: not a rectangle");
-        }
+            if (!isValidRectangle(this.info, selected)) {
+                throw new Error("Invalid selection: not a rectangle");
+            }
 
-        this.scoring.groups[this.currentTurn].push(selected);
-        this.scoring.numCellsGrouped = {
-            ...this.scoring.numCellsGrouped,
-            [this.currentTurn]: this.scoring.numCellsGrouped[this.currentTurn] + selected.length
-        };
-        selected.forEach((pos) =>
-            this.scoring.cellsToPlayerGroup.set(
-                makeCellId(pos),
-                this.currentTurn
-            )
-        );
+            // Apply mutations to draft
+            draft.scoring.groups[draft.currentTurn].push(selected);
+            draft.scoring.numCellsGrouped = {
+                ...draft.scoring.numCellsGrouped,
+                [draft.currentTurn]: draft.scoring.numCellsGrouped[draft.currentTurn] + selected.length
+            };
+            
+            selected.forEach((pos) =>
+                draft.scoring.cellsToPlayerGroup.set(
+                    makeCellId(pos),
+                    draft.currentTurn
+                )
+            );
 
-        const currentPlayerHasUngroupedCells =
-            this.scoring.numCellsGrouped[this.currentTurn] !=
-            this.info.size / 2;
-        const nextPlayerHasUngroupedCells =
-            this.scoring.numCellsGrouped[togglePlayer(this.currentTurn)] !=
-            this.info.size / 2;
+            const currentPlayerHasUngroupedCells =
+                draft.scoring.numCellsGrouped[draft.currentTurn] != this.info.size / 2;
+            const nextPlayerHasUngroupedCells =
+                draft.scoring.numCellsGrouped[togglePlayer(draft.currentTurn)] != this.info.size / 2;
 
-        if (nextPlayerHasUngroupedCells) {
-            this.toggleTurn();
-        } else if (!currentPlayerHasUngroupedCells) {
-            this.phase = endPhase;
-        }
-
-        return this;
-    }
-
-    /**
-     * Creates a deep clone of this GameModel.
-     * Use for optimistic updates: game.clone().groupSelected(selected)
-     */
-    clone(): GameModel {
-        const cloned = structuredClone(this);
-        Object.setPrototypeOf(cloned, Object.getPrototypeOf(this));
-        return cloned;
+            if (nextPlayerHasUngroupedCells) {
+                draft.currentTurn = togglePlayer(draft.currentTurn);
+            } else if (!currentPlayerHasUngroupedCells) {
+                draft.phase = endPhase;
+            }
+        }, {
+            mark: (target) => {
+                if (target instanceof GameModel) return 'immutable';
+            }
+        });
     }
 
     getWinner(): Player | undefined {

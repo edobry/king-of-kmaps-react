@@ -30,6 +30,7 @@ We explicitly **do not** want:
 
 ### Core Technologies
 - **Mutative**: Fast immutable updates with familiar Immer-like syntax
+  - **Note**: Requires `mark` configuration to work with class instances (see implementation details)
 - **Function-based Actions**: React optimistic updates using functions instead of string actions
 - **Shared GameModel**: Single class used across client, server, and tests
 
@@ -73,9 +74,13 @@ const updatedGame = game.groupSelected(selected);
 // ✅ Function-based actions
 (game: GameModel) => game.groupSelected(selected)
 
-// ✅ Automatic immutability
+// ✅ Automatic immutability with class support
 return create(this, draft => {
   draft.scoring.groups[draft.currentTurn].push(selected);
+}, {
+  mark: (target, { immutable }) => {
+    if (target instanceof GameModel) return immutable;
+  }
 });
 ```
 
@@ -120,6 +125,10 @@ groupSelected(selected: Position[]): GameModel {
     draft.scoring.groups[draft.currentTurn].push(selected);
     draft.scoring.numCellsGrouped[draft.currentTurn] += selected.length;
     // ... rest of logic
+  }, {
+    mark: (target, { immutable }) => {
+      if (target instanceof GameModel) return immutable;
+    }
   });
 }
 
@@ -130,6 +139,8 @@ groupSelected(selected: Position[]): GameModel {
 - `groupSelected()`
 - `makeMove()`  
 - `randomizeBoard()`
+
+**Important**: All methods using `create()` must include the `mark` configuration to handle the GameModel class instance properly.
 
 #### 1.3 Server Route Consistency
 **File**: `src/server/routes.ts`

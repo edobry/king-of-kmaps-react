@@ -60,10 +60,10 @@ router.post("/random", async (req: express.Request, res: express.Response) => {
         throw new Error("game not initialized");
     }
 
-    const gameModel = game.randomizeBoard();
-    await gameDb.setGame(gameModel);
+    const updatedGame = game.randomizeBoard();
+    await gameDb.setGame(updatedGame);
 
-    res.send(superjson.stringify(gameModel));
+    res.send(superjson.stringify(updatedGame));
 });
 
 router.post("/move", async (req: express.Request, res: express.Response) => {
@@ -83,11 +83,11 @@ router.post("/move", async (req: express.Request, res: express.Response) => {
         throw new Error("game not initialized");
     }
 
-    const gameModel = game.makeMove(body.pos);
-    await gameDb.setGame(gameModel);
+    const updatedGame = game.makeMove(body.pos);
+    await gameDb.setGame(updatedGame);
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    res.send(superjson.stringify(gameModel));
+    res.send(superjson.stringify(updatedGame));
 });
 
 router.post("/group", async (req: express.Request, res: express.Response) => {
@@ -110,11 +110,11 @@ router.post("/group", async (req: express.Request, res: express.Response) => {
     const selected = body.selected as Position[];
     
     try {
-        game.groupSelected(selected);
-        await gameDb.setGame(game);
+        const updatedGame = game.groupSelected(selected);
+        await gameDb.setGame(updatedGame);
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
-        res.send(superjson.stringify(game));
+        res.send(superjson.stringify(updatedGame));
     } catch (error) {
         res.status(400).json({
             status: 400,
