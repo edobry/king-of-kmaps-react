@@ -221,7 +221,7 @@ test("groupSelected: turn toggled if next player has ungrouped cells", () => {
 });
 
 test("groupSelected: turn not toggled if next player has no ungrouped cells", () => {
-    const game = GameModel.initGame(3, { phase: placePhase, currentTurn: 1 });
+    let game = GameModel.initGame(3, { phase: placePhase, currentTurn: 1 });
 
     const player1Cells = [
         [0, 0, 0],
@@ -242,7 +242,7 @@ test("groupSelected: turn not toggled if next player has no ungrouped cells", ()
 
     game.phase = scorePhase;
 
-    game.groupSelected(player1Cells);
+    game = game.groupSelected(player1Cells);
 
     expect(
         game.groupSelected([player0Cells[0], player0Cells[1]]).currentTurn
