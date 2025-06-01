@@ -285,6 +285,9 @@ export class GameModelInterface implements GameInterface {
 export const makeCellId = (pos: Position) =>
     pos.map((p) => p.toString()).join(",");
 
+export const positionsEqual = (pos1: Position, pos2: Position): boolean =>
+    pos1[0] === pos2[0] && pos1[1] === pos2[1] && pos1[2] === pos2[2];
+
 const computeScoringState = (groups: { [key in Player]: Position[][] }): ScoringState => {
     return Object.entries(groups ?? {}).reduce((scoring, [player, groups]) => {
         const playerId = parseInt(player) as Player;

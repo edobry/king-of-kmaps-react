@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, Fragment } from "react";
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, isValidGroupSelection } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, isValidGroupSelection, positionsEqual } from '../domain/game';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 import api from "./api";
@@ -40,61 +40,84 @@ const GameControls = ({
     </div>
 );
 
+const PhaseInfo = ({ game, isPending }: { game: GameModel; isPending: boolean }) => {
+    if (game.phase === endPhase) return null;
+    
+    return (
+        <>
+            <b>Current Phase:</b> {game.phase}<br />
+            <b>Current Turn:</b> {isPending ? "Waiting..." : getPlayerName(game, game.currentTurn)}<br />
+        </>
+    );
+};
+
+const PlacePhaseInfo = ({ game }: { game: GameModel }) => {
+    if (game.phase !== placePhase) return null;
+    
+    return (
+        <>
+            <br />
+            Move Counter: {game.moveCounter}
+        </>
+    );
+};
+
+const ScorePhaseInfo = ({ game }: { game: GameModel }) => {
+    if (game.phase !== scorePhase) return null;
+    
+    return (
+        <>
+            <br />
+            <b>Ungrouped</b>:<br />
+            {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => {
+                const ungrouped = (game.info.size / 2) - num;
+                return (
+                    <Fragment key={player}>
+                        {getPlayerName(game, parseInt(player) as Player)}: {ungrouped} / {game.info.size / 2}<br />
+                    </Fragment>
+                );
+            })}
+        </>
+    );
+};
+
+const GroupsInfo = ({ game }: { game: GameModel }) => {
+    if (![scorePhase, endPhase].includes(game.phase)) return null;
+    
+    return (
+        <>
+            <br />
+            <b>Groups:</b><br />
+            {Object.entries(game.scoring.groups).map(([player, groups]) => (
+                <Fragment key={player}>
+                    {getPlayerName(game, parseInt(player) as Player)}: {groups.length}<br />
+                </Fragment>
+            ))}
+        </>
+    );
+};
+
 const GameInfo = ({
     game, 
     isPending = false
 }: {
     game: GameModel;
     isPending?: boolean;
-}) => {
-    return (<div id="info">
+}) => (
+    <div id="info">
         <b>Variables:</b> {game.info.numVars} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
             `${key} = ${value.join(", ")}`).join(" | ")})<br />
         <b>Grid Size:</b> {game.info.size} ({game.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
         <br />
-        {game.phase !== endPhase && (
-            <>
-                <b>Current Phase:</b> {game.phase}<br />
-                <b>Current Turn:</b> {isPending ? "Waiting..." : getPlayerName(game, game.currentTurn)}<br />
-            </>
-        )}
-        {game.phase === placePhase && (
-            <>
-                <br />
-                Move Counter: {game.moveCounter}
-            </>
-        )}
-        {game.phase === scorePhase && (
-            <>
-                <br />
-                <b>Ungrouped</b>:<br />
-                {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => {
-                    const ungrouped = (game.info.size / 2) - num;
-                    return (
-                        <Fragment key={player}>
-                            {getPlayerName(game, parseInt(player) as Player)}: {ungrouped} / {game.info.size / 2}<br />
-                        </Fragment>
-                    );
-                })}
-            </>
-        )}
-        {[scorePhase, endPhase].includes(game.phase) && (<>
-            <br />
-            <b>Groups:</b>
-            <br />
-            {Object.entries(game.scoring.groups).map(([player, groups]) => {
-                return (
-                    <Fragment key={player}>
-                        {getPlayerName(game, parseInt(player) as Player)}: {groups.length}<br />
-                    </Fragment>
-                );
-            })}
-        </>)}
-        {game.phase === endPhase && Winner(game)}
-    </div>);
-}
+        <PhaseInfo game={game} isPending={isPending} />
+        <PlacePhaseInfo game={game} />
+        <ScorePhaseInfo game={game} />
+        <GroupsInfo game={game} />
+        {game.phase === endPhase && <Winner game={game} />}
+    </div>
+);
 
-const Winner = (game: GameModel) => {
+const Winner = ({ game }: { game: GameModel }) => {
     const winner = game.getWinner();
     return (
         <>
@@ -105,7 +128,7 @@ const Winner = (game: GameModel) => {
             }
         </>
     );
-}
+};
 
 // Simple hook for selection state
 const useSelection = () => {
@@ -124,9 +147,7 @@ const useSelection = () => {
 
             if (isCurrentlySelected) {
                 // Deselect the cell
-                return currentSelected.filter(p => 
-                    !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
-                );
+                return currentSelected.filter(p => !positionsEqual(p, pos));
             } else {
                 // Select the cell - check adjacency if we already have selections
                 if (currentSelected.length > 0) {
@@ -242,6 +263,10 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
 
     return (
         <>
+            <GameInfo
+                game={game}
+                isPending={isPending}
+            />
             <GameControls
                 game={game}
                 selectedCount={selected.length}
@@ -261,10 +286,6 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
                     />
                 ))}
             </div>
-            <GameInfo
-                game={game}
-                isPending={isPending}
-            />
         </>
     );
 }
