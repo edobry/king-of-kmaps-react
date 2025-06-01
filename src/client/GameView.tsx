@@ -15,24 +15,32 @@ const GameControls = ({
     selectedCount,
     onNewGame, 
     onRandomizeBoard, 
-    onMakeGroup 
+    onMakeGroup,
+    isPending = false
 }: {
     game: GameModel;
     selectedCount: number;
     onNewGame: () => Promise<void>;
     onRandomizeBoard: () => void;
     onMakeGroup: () => void;
+    isPending?: boolean;
 }) => (
     <div id="controls">
         <button id="newGame" onClick={onNewGame}>New Game</button>
         {game.phase === placePhase && (
-            <button id="randomizeBoard" onClick={onRandomizeBoard}>Randomize</button>
+            <button 
+                id="randomizeBoard" 
+                onClick={onRandomizeBoard}
+                disabled={isPending}
+            >
+                Randomize
+            </button>
         )}
         {game.phase === scorePhase && (
             <button 
                 id="groupSelected" 
                 onClick={onMakeGroup}
-                disabled={selectedCount === 0}
+                disabled={selectedCount === 0 || isPending}
             >
                 Group
             </button>
@@ -150,7 +158,7 @@ const useSelection = () => {
     return { selected, clearSelection, toggleSelection };
 };
 
-// Simple hook for optimistic actions  
+// Hook for optimistic actions with immediate UI updates
 const useOptimisticAction = (setNewGame: (game: GameModel) => void) => {
     const [isPending, setIsPending] = React.useState(false);
 
@@ -165,11 +173,20 @@ const useOptimisticAction = (setNewGame: (game: GameModel) => void) => {
 
         try {
             setIsPending(true);
-            const result = await apiCall();
-            setNewGame(result);
+            
+            // Apply optimistic update immediately
+            const optimisticResult = action();
+            setNewGame(optimisticResult);
+            
+            // Then make server call and reconcile
+            const serverResult = await apiCall();
+            setNewGame(serverResult);
         } catch (error) {
             console.error("Action failed:", error);
             alert((error as Error).message || "Action failed");
+            
+            // On error, we could rollback to previous state here if needed
+            // For now, server will maintain authoritative state
         } finally {
             setIsPending(false);
         }
@@ -254,6 +271,7 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
                 onNewGame={newGame}
                 onRandomizeBoard={handleRandomizeBoard}
                 onMakeGroup={makeGroup}
+                isPending={isPending}
             />
             <div id="board">
                 {game.board.map((_, zPos) => (
