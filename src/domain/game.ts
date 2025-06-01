@@ -176,19 +176,22 @@ export class GameModel {
 
     groupSelected(selected: Position[]): GameModel {
         return create(this, draft => {
-            // Validation using original instance (this.method())
+            // Early return for empty selection
             if (selected.length === 0) return;
 
-            if (selected.some((pos) => this.getCell(pos) !== this.currentTurn)) {
-                throw new Error("Invalid selection: cannot group unowned cells");
-            }
+            // Use isValidGroupSelection for validation and provide specific error messages
+            if (!isValidGroupSelection(this, selected)) {
+                if (selected.some((pos) => this.getCell(pos) !== this.currentTurn)) {
+                    throw new Error("Invalid selection: cannot group unowned cells");
+                }
 
-            if (selected.length > 1 && !Number.isInteger(Math.log2(selected.length))) {
-                throw new Error("Invalid selection: not a power of two");
-            }
+                if (selected.length > 1 && !Number.isInteger(Math.log2(selected.length))) {
+                    throw new Error("Invalid selection: not a power of two");
+                }
 
-            if (!isValidRectangle(this.info, selected)) {
-                throw new Error("Invalid selection: not a rectangle");
+                if (!isValidRectangle(this.info, selected)) {
+                    throw new Error("Invalid selection: not a rectangle");
+                }
             }
 
             // Apply mutations to draft
