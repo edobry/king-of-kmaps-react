@@ -276,3 +276,34 @@ test("makeMove: transitions to score phase when board is full", () => {
     expect(game.phase).toBe(scorePhase);
     expect(game.moveCounter).toBe(8);
 });
+
+test("randomizeBoard: transitions to score phase with full board", () => {
+    const game = GameModel.initGame(3, { phase: placePhase, currentTurn: 0 });
+    
+    expect(game.phase).toBe(placePhase);
+    expect(game.moveCounter).toBe(0);
+    
+    const randomizedGame = game.randomizeBoard();
+    
+    expect(randomizedGame.phase).toBe(scorePhase);
+    expect(randomizedGame.moveCounter).toBe(game.info.size);
+    
+    // Check that board is completely filled (no null values)
+    let nullCount = 0;
+    let player0Count = 0;
+    let player1Count = 0;
+    
+    randomizedGame.board.forEach(zSlice => {
+        zSlice.forEach(row => {
+            row.forEach(cell => {
+                if (cell === null) nullCount++;
+                else if (cell === 0) player0Count++;
+                else if (cell === 1) player1Count++;
+            });
+        });
+    });
+    
+    expect(nullCount).toBe(0); // No empty cells
+    expect(player0Count).toBe(game.info.size / 2); // Half for player 0
+    expect(player1Count).toBe(game.info.size / 2); // Half for player 1
+});

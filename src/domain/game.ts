@@ -165,12 +165,8 @@ export class GameModel {
     randomizeBoard(): GameModel {
         return create(this, draft => {
             draft.board = makeRandomBoard(this.info.dimensions);
-            draft.phase = placePhase;
-            draft.moveCounter = this.info.size - 1;
-            
-            if (draft.moveCounter >= this.info.size) {
-                draft.phase = scorePhase as ScorePhase;
-            }
+            draft.moveCounter = this.info.size;
+            draft.phase = scorePhase as ScorePhase;
         }, {
             mark: (target) => {
                 if (target instanceof GameModel) return 'immutable';

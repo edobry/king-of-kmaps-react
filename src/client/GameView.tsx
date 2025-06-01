@@ -203,15 +203,13 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
         );
     }, [executeAction, game]);
 
-    const handleRandomizeBoard = useCallback(async () => {
-        try {
-            const updatedGame = await api.randomizeBoard();
-            setGame(updatedGame);
-        } catch (error) {
-            console.error("Randomize failed:", error);
-            alert((error as Error).message || "Randomize failed");
-        }
-    }, []);
+    const handleRandomizeBoard = useCallback(() => {
+        executeAction(
+            () => game.randomizeBoard(),
+            () => api.randomizeBoard(),
+            () => game.phase === placePhase
+        );
+    }, [executeAction, game]);
 
     const makeGroup = useCallback(() => {
         if (selected.length === 0) return;
