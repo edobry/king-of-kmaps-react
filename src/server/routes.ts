@@ -7,10 +7,10 @@ import gameDb from "./db";
 const router = express.Router();
 
 // Helper function to get game and validate it exists
-const getGameOrThrow = async (): Promise<GameModel> => {
-    const game = await gameDb.getGame();
+const getGameOrThrow = async (gameId: number): Promise<GameModel> => {
+    const game = await gameDb.getGame(gameId);
     if (!game) {
-        throw new NotFoundError("game not initialized");
+        throw new NotFoundError("game not found");
     }
     return game;
 };
@@ -28,8 +28,21 @@ const updateGameAndRespond = async (
     res.send(superjson.stringify(updatedGame));
 };
 
-router.get("/", async (_req: express.Request, res: express.Response) => {
-    const game = await getGameOrThrow();
+router.get("/", async (req: express.Request, res: express.Response) => {
+    const games = await gameDb.getGames();
+    res.send(superjson.stringify(games));
+});
+
+router.get("/:gameId", async (req: express.Request, res: express.Response) => {
+    const gameId = req.params.gameId;
+    if (!gameId) {
+        res.status(400).json({
+            status: 400,
+            message: "gameId is required",
+        });
+        return;
+    }
+    const game = await getGameOrThrow(Number(gameId));
     res.send(superjson.stringify(game));
 });
 
@@ -66,19 +79,35 @@ router.post("/", async (req: express.Request, res: express.Response) => {
         currentTurn: body.currentTurn,
     });
 
-    await gameDb.deleteGame();
     await gameDb.setGame(gameModel);
 
     res.send(superjson.stringify(gameModel));
 });
 
-router.post("/random", async (req: express.Request, res: express.Response) => {
-    const game = await getGameOrThrow();
+router.post("/:gameId/random", async (req: express.Request, res: express.Response) => {
+    const gameId = req.params.gameId;
+    if (!gameId) {
+        res.status(400).json({
+            status: 400,
+            message: "gameId is required",
+        });
+        return;
+    }
+    const game = await getGameOrThrow(Number(gameId));
     const updatedGame = game.randomizeBoard();
     await updateGameAndRespond(res, updatedGame);
 });
 
-router.post("/move", async (req: express.Request, res: express.Response) => {
+router.post("/:gameId/move", async (req: express.Request, res: express.Response) => {
+    const gameId = req.params.gameId;
+    if (!gameId) {
+        res.status(400).json({
+            status: 400,
+            message: "gameId is required",
+        });
+        return;
+    }
+    
     const body = req.body;
 
     if (!body) {
@@ -89,12 +118,21 @@ router.post("/move", async (req: express.Request, res: express.Response) => {
         throw new Error("you must send a position");
     }
 
-    const game = await getGameOrThrow();
+    const game = await getGameOrThrow(Number(gameId));
     const updatedGame = game.makeMove(body.pos);
     await updateGameAndRespond(res, updatedGame, 3000);
 });
 
-router.post("/group", async (req: express.Request, res: express.Response) => {
+router.post("/:gameId/group", async (req: express.Request, res: express.Response) => {
+    const gameId = req.params.gameId;
+    if (!gameId) {
+        res.status(400).json({
+            status: 400,
+            message: "gameId is required",
+        });
+        return;
+    }
+    
     const body = req.body;
     
     if (!body) {
@@ -105,7 +143,7 @@ router.post("/group", async (req: express.Request, res: express.Response) => {
         throw new Error("you must send a selection");
     }
 
-    const game = await getGameOrThrow();
+    const game = await getGameOrThrow(Number(gameId));
     const selected = body.selected as Position[];
     
     try {
@@ -119,8 +157,16 @@ router.post("/group", async (req: express.Request, res: express.Response) => {
     }
 });
 
-router.delete("/", async (req: express.Request, res: express.Response) => {
-    await gameDb.deleteGame();
+router.delete("/:gameId", async (req: express.Request, res: express.Response) => {
+    const gameId = req.params.gameId;
+    if (!gameId) {
+        res.status(400).json({
+            status: 400,
+            message: "gameId is required",
+        });
+        return;
+    }
+    await gameDb.deleteGame(Number(gameId));
     res.sendStatus(204);
 });
 

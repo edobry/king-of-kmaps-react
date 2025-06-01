@@ -9,12 +9,15 @@ config({ path: ".env", override: true });
 
 const client = postgres(process.env.SUPABASE_URL!, { prepare: false });
 
-const gameId = 0;
-
 class GameDb {
     private db = drizzle({ client, schema: { gamesTable } });
+    
+    async getGames(): Promise<GameModel[]> {
+        const games: SelectGame[] = await this.db.query.gamesTable.findMany();
+        return games.map(game => new GameModel(game));
+    }
 
-    async getGame(): Promise<GameModel | undefined> {
+    async getGame(gameId: number): Promise<GameModel | undefined> {
         const game: SelectGame | undefined = await this.db.query.gamesTable.findFirst({
             where: eq(gamesTable.id, gameId),
         });
@@ -32,13 +35,12 @@ class GameDb {
         if (record.id !== undefined) {
             await this.db.update(gamesTable).set(record).where(eq(gamesTable.id, record.id));
         } else {
-            record.id = gameId;
             const [result] = await this.db.insert(gamesTable).values(record).returning({ id: gamesTable.id });
             game.id = result?.id;
         }
     }
 
-    async deleteGame() {
+    async deleteGame(gameId: number) {
         await this.db.delete(gamesTable).where(eq(gamesTable.id, gameId));
     }
 }
