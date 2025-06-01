@@ -179,38 +179,41 @@ export const GameView: React.FC = () => {
                 return;
             }
 
-            const selectedMap = new Map<string, Position>();
-            selected.forEach(p => selectedMap.set(makeCellId(p), p));
+            // Use functional state update to avoid stale closure
+            setSelected(currentSelected => {
+                const selectedMap = new Map<string, Position>();
+                currentSelected.forEach(p => selectedMap.set(makeCellId(p), p));
 
-            const isCurrentlySelected = isSelected(selectedMap, pos);
-            console.log('Is currently selected:', isCurrentlySelected, 'Selected count:', selected.length);
+                const isCurrentlySelected = isSelected(selectedMap, pos);
+                console.log('Is currently selected:', isCurrentlySelected, 'Selected count:', currentSelected.length);
 
-            if (isCurrentlySelected) {
-                // Deselect the cell
-                const newSelected = selected.filter(p => 
-                    !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
-                );
-                console.log('Deselecting cell, new count:', newSelected.length);
-                setSelected(newSelected);
-            } else {
-                // Select the cell - check adjacency if we already have selections
-                if (selected.length > 0) {
-                    const adjacencies = getAdjacencies(game.info, pos);
-                    const isAdjacentToSelection = adjacencies.some(adj => 
-                        isSelected(selectedMap, adj)
+                if (isCurrentlySelected) {
+                    // Deselect the cell
+                    const newSelected = currentSelected.filter(p => 
+                        !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
                     );
-                    
-                    if (!isAdjacentToSelection) {
-                        console.log('Cell not adjacent to selection, ignoring');
-                        return; // Not adjacent, can't select
+                    console.log('Deselecting cell, new count:', newSelected.length);
+                    return newSelected;
+                } else {
+                    // Select the cell - check adjacency if we already have selections
+                    if (currentSelected.length > 0) {
+                        const adjacencies = getAdjacencies(game.info, pos);
+                        const isAdjacentToSelection = adjacencies.some(adj => 
+                            isSelected(selectedMap, adj)
+                        );
+                        
+                        if (!isAdjacentToSelection) {
+                            console.log('Cell not adjacent to selection, ignoring');
+                            return currentSelected; // Not adjacent, can't select
+                        }
                     }
+                    
+                    console.log('Selecting cell, new count:', currentSelected.length + 1);
+                    return [...currentSelected, pos];
                 }
-                
-                console.log('Selecting cell, new count:', selected.length + 1);
-                setSelected([...selected, pos]);
-            }
+            });
         }
-    }, [game, selected]);
+    }, [game]); // Remove selected from dependencies to avoid stale closure
 
     const handleGroupSelection = useCallback(async () => {
         if (!game || selected.length === 0) return;
