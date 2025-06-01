@@ -40,63 +40,6 @@ const GameControls = ({
     </div>
 );
 
-const PhaseInfo = ({ game, isPending }: { game: GameModel; isPending: boolean }) => {
-    if (game.phase === endPhase) return null;
-    
-    return (
-        <>
-            <b>Current Phase:</b> {game.phase}<br />
-            <b>Current Turn:</b> {isPending ? "Waiting..." : getPlayerName(game, game.currentTurn)}<br />
-        </>
-    );
-};
-
-const PlacePhaseInfo = ({ game }: { game: GameModel }) => {
-    if (game.phase !== placePhase) return null;
-    
-    return (
-        <>
-            <br />
-            Move Counter: {game.moveCounter}
-        </>
-    );
-};
-
-const ScorePhaseInfo = ({ game }: { game: GameModel }) => {
-    if (game.phase !== scorePhase) return null;
-    
-    return (
-        <>
-            <br />
-            <b>Ungrouped</b>:<br />
-            {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => {
-                const ungrouped = (game.info.size / 2) - num;
-                return (
-                    <Fragment key={player}>
-                        {getPlayerName(game, parseInt(player) as Player)}: {ungrouped} / {game.info.size / 2}<br />
-                    </Fragment>
-                );
-            })}
-        </>
-    );
-};
-
-const GroupsInfo = ({ game }: { game: GameModel }) => {
-    if (![scorePhase, endPhase].includes(game.phase)) return null;
-    
-    return (
-        <>
-            <br />
-            <b>Groups:</b><br />
-            {Object.entries(game.scoring.groups).map(([player, groups]) => (
-                <Fragment key={player}>
-                    {getPlayerName(game, parseInt(player) as Player)}: {groups.length}<br />
-                </Fragment>
-            ))}
-        </>
-    );
-};
-
 const GameInfo = ({
     game, 
     isPending = false
@@ -109,10 +52,48 @@ const GameInfo = ({
             `${key} = ${value.join(", ")}`).join(" | ")})<br />
         <b>Grid Size:</b> {game.info.size} ({game.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
         <br />
-        <PhaseInfo game={game} isPending={isPending} />
-        <PlacePhaseInfo game={game} />
-        <ScorePhaseInfo game={game} />
-        <GroupsInfo game={game} />
+        
+        {game.phase !== endPhase && (
+            <>
+                <b>Current Phase:</b> {game.phase}<br />
+                <b>Current Turn:</b> {isPending ? "Waiting..." : getPlayerName(game, game.currentTurn)}<br />
+            </>
+        )}
+        
+        {game.phase === placePhase && (
+            <>
+                <br />
+                Move Counter: {game.moveCounter}
+            </>
+        )}
+        
+        {game.phase === scorePhase && (
+            <>
+                <br />
+                <b>Ungrouped</b>:<br />
+                {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => {
+                    const ungrouped = (game.info.size / 2) - num;
+                    return (
+                        <Fragment key={player}>
+                            {getPlayerName(game, parseInt(player) as Player)}: {ungrouped} / {game.info.size / 2}<br />
+                        </Fragment>
+                    );
+                })}
+            </>
+        )}
+        
+        {[scorePhase, endPhase].includes(game.phase) && (
+            <>
+                <br />
+                <b>Groups:</b><br />
+                {Object.entries(game.scoring.groups).map(([player, groups]) => (
+                    <Fragment key={player}>
+                        {getPlayerName(game, parseInt(player) as Player)}: {groups.length}<br />
+                    </Fragment>
+                ))}
+            </>
+        )}
+        
         {game.phase === endPhase && <Winner game={game} />}
     </div>
 );
@@ -170,7 +151,7 @@ const useSelection = () => {
 };
 
 // Simple hook for optimistic actions  
-const useOptimisticAction = (game: GameModel, setNewGame: (game: GameModel) => void) => {
+const useOptimisticAction = (setNewGame: (game: GameModel) => void) => {
     const [isPending, setIsPending] = React.useState(false);
 
     const executeAction = useCallback(async (
@@ -200,7 +181,7 @@ const useOptimisticAction = (game: GameModel, setNewGame: (game: GameModel) => v
 function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
     const [game, setGame] = React.useState(initialGame);
     const { selected, clearSelection, toggleSelection } = useSelection();
-    const { executeAction, isPending } = useOptimisticAction(game, setGame);
+    const { executeAction, isPending } = useOptimisticAction(setGame);
 
     // Update local game state when prop changes
     React.useEffect(() => {

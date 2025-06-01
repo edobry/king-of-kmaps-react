@@ -77,8 +77,8 @@ text-align: center;
 .grid {
   display: grid;
   gap: 1px;
-  grid-template-columns: auto repeat(4, 1fr);
-  grid-template-rows: auto repeat(4, 1fr);
+  grid-template-columns: auto repeat(var(--grid-cols, 4), 1fr);
+  grid-template-rows: auto repeat(var(--grid-rows, 4), 1fr);
 }
 
 .row {
@@ -152,4 +152,5 @@ text-align: center;
   z-index: 10;
   border-radius: 4px;
   transition: opacity 0.2s ease-in-out;
+  opacity: var(--loading-opacity, 1);
 }

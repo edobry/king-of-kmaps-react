@@ -11,9 +11,21 @@ export default function Grid({ zPos, game, selected, cellClick, isPending, loadi
   isPending: boolean,
   loadingOpacity?: number
 }) {
+  // Calculate dynamic grid dimensions
+  const numCols = game.board[zPos][0].length;
+  const numRows = game.board[zPos].length;
+
   return (
     <div className="grid-container">
-      <div id={`grid-${zPos}`} className="grid">
+      <div 
+        id={`grid-${zPos}`} 
+        className="grid"
+        style={{
+          '--grid-cols': numCols,
+          '--grid-rows': numRows,
+          '--loading-opacity': loadingOpacity
+        } as React.CSSProperties}
+      >
         <div className="corner-cell"></div>
         {game.board[zPos][0].map((_, xPos) => (
           <div className="header-cell col-header" key={`grid-${zPos}-col-${xPos}`}>
@@ -41,7 +53,7 @@ export default function Grid({ zPos, game, selected, cellClick, isPending, loadi
       
       {/* Loading overlay with fade effect */}
       {isPending && (
-        <div className="loading-overlay" style={{ opacity: loadingOpacity }}>
+        <div className="loading-overlay">
           Loading...
         </div>
       )}
