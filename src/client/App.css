@@ -8,6 +8,38 @@ h1 {
 text-align: center;
 }
 
+#lobby {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#game-start button {
+    margin: 20px auto;
+    display: block;
+}
+
+.game-list {
+  list-style-type: none;
+  padding: 0;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-list li {
+  cursor: pointer;
+  padding: 20px;
+  border-radius: 5px;
+  background-color: #494949;
+  text-align: center;
+}
+
+.game-list li:hover {
+  background-color: #6e6e6e;
+}
+
 #main {
   margin: 0 auto;
   margin-bottom: 50px;

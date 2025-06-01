@@ -93,26 +93,51 @@ const GameList = ({ app, appUpdater, setGame, onClick }: { app: AppState, appUpd
 
     return (
         <>
-        {!app.startingNewGame ? (<>
-            <div>
-                <h2>Games</h2>
-                {loading ? (<div>Loading...</div>) : (
-                <ul>
-                    {games.filter((game) => game.phase != endPhase).map((game) => (
-                        <li key={game.id} onClick={() => onClick(game.id!)}>{game.id} - {game.info.numVars} variables, {game.players.join(", ")}, {game.moveCounter} moves, {game.phase} phase</li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-            <button onClick={() => {
-                appUpdater((prev) => {
-                    prev.startingNewGame = true;
-                });
-            }}>New Game</button>
-            </>
-        ) : (
-            <GameStart app={app} appUpdater={appUpdater} setGame={setGame} />
-        )}
+            {!app.startingNewGame ? (
+                <>
+                    <div id="lobby">
+                        <h2>Games</h2>
+                        {loading ? (
+                            <div>Loading...</div>
+                        ) : (
+                            <ul className="game-list">
+                                {games
+                                    .filter((game) => game.phase != endPhase)
+                                    .sort((a, b) => a.id! - b.id!)
+                                    .map((game) => (
+                                        <li
+                                            key={game.id}
+                                            onClick={() => onClick(game.id!)}
+                                        >
+                                            <h3>Game #{game.id}</h3>
+                                            <div>[{game.players.join(" | ")}]</div>
+                                            <div>
+                                                {game.info.numVars} variables,{" "}
+                                                {game.moveCounter} moves,{" "}
+                                                {game.phase} phase
+                                            </div>
+                                        </li>
+                                    ))}
+                            </ul>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => {
+                            appUpdater((prev) => {
+                                prev.startingNewGame = true;
+                            });
+                        }}
+                    >
+                        New Game
+                    </button>
+                </>
+            ) : (
+                <GameStart
+                    app={app}
+                    appUpdater={appUpdater}
+                    setGame={setGame}
+                />
+            )}
         </>
     );
 }
