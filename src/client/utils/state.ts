@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useOptimistic, useTransition } from "
 import type { Unary } from "../../util/util";
 import type { Position, GameInfo } from "../../domain/game";
 import { GameModel } from "../../domain/game";
+import api from "../api";
 
 /**
  * Creates an optimistic clone of a GameModel using native structuredClone.
@@ -207,6 +208,7 @@ export type GameAction = (game: GameModel) => GameModel;
 interface PendingAction {
     action: GameAction;
     optimisticGame: GameModel;
+    serverCall: () => Promise<GameModel>;
 }
 
 interface StateManagerOptions {
@@ -229,7 +231,7 @@ export class OptimisticStateManager {
         return this.currentGame;
     }
 
-    async executeAction(action: GameAction): Promise<void> {
+    async executeAction(action: GameAction, serverCall: () => Promise<GameModel>): Promise<void> {
         const currentGame = this.getCurrentGame();
         if (!currentGame) {
             throw new Error("No game available");
@@ -239,7 +241,8 @@ export class OptimisticStateManager {
         const optimisticGame = action(currentGame);
         const pendingAction: PendingAction = {
             action,
-            optimisticGame
+            optimisticGame,
+            serverCall
         };
         
         this.pendingActions.push(pendingAction);
@@ -247,7 +250,7 @@ export class OptimisticStateManager {
 
         try {
             // Send to server and get canonical result
-            const canonicalGame = await this.sendToServer(action);
+            const canonicalGame = await serverCall();
             
             // Remove the pending action
             const actionIndex = this.pendingActions.indexOf(pendingAction);
@@ -285,20 +288,6 @@ export class OptimisticStateManager {
         this.notifyStateChange();
     }
 
-    private async sendToServer(action: GameAction): Promise<GameModel> {
-        // This is a simplified implementation
-        // In practice, you'd need to serialize the action or use a different approach
-        // For now, we'll just apply the action server-side and return the result
-        
-        // For the demo, let's assume the server returns the same result
-        // In reality, you'd need to map function-based actions to server endpoints
-        if (!this.currentGame) {
-            throw new Error("No current game");
-        }
-        
-        return action(this.currentGame);
-    }
-
     private notifyStateChange() {
         if (this.onStateChange) {
             this.onStateChange(this.getCurrentGame());
@@ -306,12 +295,18 @@ export class OptimisticStateManager {
     }
 }
 
-// Action creators for common game actions
-export const makeMove = (pos: [number, number, number]) => 
-    (game: GameModel) => game.makeMove(pos);
+// Action creators for common game actions with server integration
+export const makeMove = (pos: [number, number, number]) => ({
+    action: (game: GameModel) => game.makeMove(pos),
+    serverCall: () => api.makeMove(pos)
+});
 
-export const groupSelected = (selected: [number, number, number][]) => 
-    (game: GameModel) => game.groupSelected(selected);
+export const groupSelected = (selected: [number, number, number][]) => ({
+    action: (game: GameModel) => game.groupSelected(selected),
+    serverCall: () => api.groupSelected(selected)
+});
 
-export const randomizeBoard = () => 
-    (game: GameModel) => game.randomizeBoard();
+export const randomizeBoard = () => ({
+    action: (game: GameModel) => game.randomizeBoard(),
+    serverCall: () => api.randomizeBoard()
+});

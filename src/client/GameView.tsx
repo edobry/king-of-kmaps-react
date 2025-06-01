@@ -2,6 +2,7 @@ import React, { useEffect, useState, Fragment, useMemo } from "react";
 import Grid, { type CellClick } from './Grid';
 import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId } from '../domain/game';
 import { OptimisticStateManager, makeMove, groupSelected, randomizeBoard } from "./utils/state";
+import api from "./api";
 
 const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
@@ -117,9 +118,24 @@ export const GameView: React.FC = () => {
             onStateChange: setGame
         });
         
-        // Initialize a new game
-        const initialGame = GameModel.initGame(3);
-        newStateManager.setGame(initialGame);
+        // Initialize game from server
+        const initializeGame = async () => {
+            try {
+                let initialGame = await api.fetchGame();
+                if (!initialGame) {
+                    // No game exists, create a new one
+                    initialGame = await api.initGame(3);
+                }
+                newStateManager.setGame(initialGame);
+            } catch (error) {
+                console.error("Failed to initialize game:", error);
+                // Fallback to local game
+                const fallbackGame = GameModel.initGame(3);
+                newStateManager.setGame(fallbackGame);
+            }
+        };
+        
+        initializeGame();
         
         // Replace the old state manager
         Object.assign(stateManager, newStateManager);
@@ -143,7 +159,8 @@ export const GameView: React.FC = () => {
         try {
             setIsPending(true);
             if (game.phase === placePhase) {
-                await stateManager.executeAction(makeMove(pos));
+                const moveAction = makeMove(pos);
+                await stateManager.executeAction(moveAction.action, moveAction.serverCall);
             } else if (game.phase === scorePhase) {
                 const newSelected = selected.some(p => 
                     p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2]
@@ -164,7 +181,8 @@ export const GameView: React.FC = () => {
         
         try {
             setIsPending(true);
-            await stateManager.executeAction(groupSelected(selected));
+            const groupAction = groupSelected(selected);
+            await stateManager.executeAction(groupAction.action, groupAction.serverCall);
             setSelected([]);
         } catch (error) {
             console.error("Group selection failed:", error);
@@ -176,7 +194,8 @@ export const GameView: React.FC = () => {
     const handleRandomize = async () => {
         try {
             setIsPending(true);
-            await stateManager.executeAction(randomizeBoard());
+            const randomAction = randomizeBoard();
+            await stateManager.executeAction(randomAction.action, randomAction.serverCall);
         } catch (error) {
             console.error("Randomize failed:", error);
         } finally {
@@ -187,7 +206,7 @@ export const GameView: React.FC = () => {
     const handleNewGame = async () => {
         try {
             setIsPending(true);
-            const newGame = GameModel.initGame(3);
+            const newGame = await api.initGame(3);
             stateManager.setGame(newGame);
             setSelected([]);
         } catch (error) {
