@@ -1,7 +1,6 @@
-import React, { useEffect, useState, Fragment, useMemo } from "react";
+import React, { useEffect, useState, Fragment, useMemo, useCallback } from "react";
 import Grid, { type CellClick } from './Grid';
 import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId } from '../domain/game';
-import { OptimisticStateManager, makeMove, groupSelected, randomizeBoard } from "./utils/state";
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 import api from "./api";
@@ -109,17 +108,11 @@ const Winner = (game: GameModel) => {
 }
 
 export const GameView: React.FC = () => {
-    const [stateManager] = useState(() => new OptimisticStateManager());
     const [game, setGame] = useState<GameModel | undefined>();
     const [selected, setSelected] = useState<Position[]>([]);
     const [isPending, setIsPending] = useState(false);
 
     useEffect(() => {
-        // Initialize state manager with callback
-        const newStateManager = new OptimisticStateManager({
-            onStateChange: setGame
-        });
-        
         // Initialize game from server
         const initializeGame = async () => {
             try {
@@ -128,21 +121,17 @@ export const GameView: React.FC = () => {
                     // No game exists, create a new one
                     initialGame = await api.initGame(3);
                 }
-                newStateManager.setGame(initialGame);
+                setGame(initialGame);
             } catch (error) {
                 console.error("Failed to initialize game:", error);
                 // Fallback to local game
                 const fallbackGame = GameModel.initGame(3);
-                newStateManager.setGame(fallbackGame);
+                setGame(fallbackGame);
             }
         };
         
         initializeGame();
-        
-        // Replace the old state manager
-        Object.assign(stateManager, newStateManager);
-        
-    }, [stateManager]);
+    }, []);
 
     // Create cellClick function based on game phase
     const cellClick: CellClick | undefined = useMemo(() => {
@@ -155,21 +144,22 @@ export const GameView: React.FC = () => {
         };
     }, [game?.phase, isPending]);
 
-    const handleCellClick = async (pos: Position) => {
+    const handleCellClick = useCallback(async (pos: Position) => {
         if (!game) return;
 
         if (game.phase === placePhase) {
             try {
                 setIsPending(true);
-                const moveAction = makeMove(pos);
-                await stateManager.executeAction(moveAction.action, moveAction.serverCall);
+                const updatedGame = await api.makeMove(pos);
+                setGame(updatedGame);
             } catch (error) {
-                console.error("Action failed:", error);
+                console.error("Move failed:", error);
+                alert((error as Error).message || "Move failed");
             } finally {
                 setIsPending(false);
             }
         } else if (game.phase === scorePhase) {
-            // Handle selection logic without setting pending state
+            // Handle selection logic - no server call needed
             const cellValue = game.getCell(pos);
             
             // Only allow selecting cells owned by current player
@@ -209,47 +199,52 @@ export const GameView: React.FC = () => {
                 setSelected([...selected, pos]);
             }
         }
-    };
+    }, [game, selected]);
 
-    const handleGroupSelection = async () => {
-        if (selected.length === 0) return;
+    const handleGroupSelection = useCallback(async () => {
+        if (!game || selected.length === 0) return;
         
         try {
             setIsPending(true);
-            const groupAction = groupSelected(selected);
-            await stateManager.executeAction(groupAction.action, groupAction.serverCall);
+            const updatedGame = await api.groupSelected(selected);
+            setGame(updatedGame);
             setSelected([]);
         } catch (error) {
             console.error("Group selection failed:", error);
+            alert((error as Error).message || "Group selection failed");
         } finally {
             setIsPending(false);
         }
-    };
+    }, [game, selected]);
 
-    const handleRandomize = async () => {
+    const handleRandomize = useCallback(async () => {
+        if (!game) return;
+        
         try {
             setIsPending(true);
-            const randomAction = randomizeBoard();
-            await stateManager.executeAction(randomAction.action, randomAction.serverCall);
+            const updatedGame = await api.randomizeBoard();
+            setGame(updatedGame);
         } catch (error) {
             console.error("Randomize failed:", error);
+            alert((error as Error).message || "Randomize failed");
         } finally {
             setIsPending(false);
         }
-    };
+    }, [game]);
 
-    const handleNewGame = async () => {
+    const handleNewGame = useCallback(async () => {
         try {
             setIsPending(true);
             const newGame = await api.initGame(3);
-            stateManager.setGame(newGame);
+            setGame(newGame);
             setSelected([]);
         } catch (error) {
             console.error("New game failed:", error);
+            alert((error as Error).message || "New game failed");
         } finally {
             setIsPending(false);
         }
-    };
+    }, []);
 
     if (!game) {
         return <div>Loading...</div>;
