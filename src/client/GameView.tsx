@@ -6,32 +6,30 @@ import { isSelected } from '../domain/grid';
 import { useOptimisticAction } from '../util/useOptimisticAction';
 import { useFadeLoading } from '../util/useFadeLoading';
 import api from "./api";
+import { useLoaderData, useNavigate } from "react-router";
 
 const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
         ? `${game.players[player]} (${player})`
         : `Player ${player}`;
 
-const GameControls = ({ 
-    game, 
+const GameControls = ({
+    game,
     selectedCount,
-    onNewGame, 
-    onRandomizeBoard, 
+    onRandomizeBoard,
     onMakeGroup,
-    isPending = false
+    isPending = false,
 }: {
     game: GameModel;
     selectedCount: number;
-    onNewGame: () => Promise<void>;
     onRandomizeBoard: () => void;
     onMakeGroup: () => void;
     isPending?: boolean;
 }) => (
     <div id="controls">
-        <button id="newGame" onClick={onNewGame}>New Game</button>
         {game.phase === placePhase && (
-            <button 
-                id="randomizeBoard" 
+            <button
+                id="randomizeBoard"
                 onClick={onRandomizeBoard}
                 disabled={isPending}
             >
@@ -39,8 +37,8 @@ const GameControls = ({
             </button>
         )}
         {game.phase === scorePhase && (
-            <button 
-                id="groupSelected" 
+            <button
+                id="groupSelected"
                 onClick={onMakeGroup}
                 disabled={selectedCount === 0 || isPending}
             >
@@ -160,7 +158,10 @@ const useSelection = () => {
     return { selected, clearSelection, toggleSelection };
 };
 
-function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
+function GameView() {
+    const { game: initialGame } = useLoaderData<{ game: GameModel }>();
+    const navigate = useNavigate();
+
     const [game, setGame] = React.useState(initialGame);
     const { selected, clearSelection, toggleSelection } = useSelection();
     const { executeAction, isPending } = useOptimisticAction(setGame, () => game);
@@ -237,14 +238,12 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
 
     return (
         <>
-            <GameInfo
-                game={game}
-                isPending={isPending}
-            />
+            <button id="home" onClick={() => navigate("/")}>Home</button>
+
+            <GameInfo game={game} isPending={isPending} />
             <GameControls
                 game={game}
                 selectedCount={selected.length}
-                onNewGame={newGame}
                 onRandomizeBoard={handleRandomizeBoard}
                 onMakeGroup={makeGroup}
                 isPending={isPending}
