@@ -1,4 +1,4 @@
-import { GameModel, type Position, GameModelInterface } from "../domain/game";
+import { GameModel, type Position } from "../domain/game";
 import express from "express";
 import { NotFoundError } from "./errors";
 import superjson from "superjson";
@@ -15,11 +15,13 @@ const getGameOrThrow = async (gameId: number): Promise<GameModel> => {
     return game;
 };
 
+const defaultDelay = 0;
+
 // Helper function to update game and send response
 const updateGameAndRespond = async (
     res: express.Response, 
     updatedGame: GameModel, 
-    delay = 0
+    delay = defaultDelay
 ): Promise<void> => {
     await gameDb.setGame(updatedGame);
     if (delay > 0) {
@@ -120,7 +122,7 @@ router.post("/:gameId/move", async (req: express.Request, res: express.Response)
 
     const game = await getGameOrThrow(Number(gameId));
     const updatedGame = game.makeMove(body.pos);
-    await updateGameAndRespond(res, updatedGame, 3000);
+    await updateGameAndRespond(res, updatedGame);
 });
 
 router.post("/:gameId/group", async (req: express.Request, res: express.Response) => {
@@ -148,7 +150,7 @@ router.post("/:gameId/group", async (req: express.Request, res: express.Response
     
     try {
         const updatedGame = game.groupSelected(selected);
-        await updateGameAndRespond(res, updatedGame, 3000);
+        await updateGameAndRespond(res, updatedGame);
     } catch (error) {
         res.status(400).json({
             status: 400,

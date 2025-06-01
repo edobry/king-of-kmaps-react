@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { AppState } from "./App";
 import api from "./api";
@@ -15,18 +15,18 @@ export default function GameStart({
     appUpdater: (updater: (app: AppState) => void) => void;
     setGame: (game: GameModel, started: boolean) => void;
 }) {
-    const [loading, setLoading] = useState(true);
+    // const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        (async () => {
-            setLoading(true);
-            const gameData = await api.fetchGame();
-            setLoading(false);
-            if (gameData) {
-                setGame(gameData, true);
-            }
-        })();
-    }, [setGame]);
+    // useEffect(() => {
+    //     (async () => {
+    //         setLoading(true);
+    //         const gameData = await api.fetchGame();
+    //         setLoading(false);
+    //         if (gameData) {
+    //             setGame(gameData, true);
+    //         }
+    //     })();
+    // }, [setGame]);
 
     const startGame = useCallback(async () => {
         const gameData = await api.initGame(app.numVars, {
@@ -53,10 +53,6 @@ export default function GameStart({
             },
         [appUpdater]
     );
-
-    if (loading) {
-        return <div>Loading...</div>;
-    }
 
     return (
         <div id="game-inputs">

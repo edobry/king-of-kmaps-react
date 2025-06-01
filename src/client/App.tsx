@@ -1,12 +1,13 @@
-import { useCallback, useState } from 'react';
-import './App.css';
+import { useCallback, useEffect, useState } from 'react';
 import GameView from './GameView';
-import GameStart from './GameStart';
-import type { GameState } from '../domain/game';
+import './App.css';
 import api from './api';
+import { endPhase, GameModel } from '../domain/game';
+import GameStart from './GameStart';
 
 export type AppState = {
-    game?: GameState;
+    game?: GameModel;
+    startingNewGame: boolean;
     gameStarted: boolean;
     players: string[];
     numVars: number;
@@ -15,6 +16,7 @@ export type AppState = {
 function App() {
     const [app, setApp] = useState<AppState>({
         game: undefined,
+        startingNewGame: false,
         gameStarted: false,
         players: ["Player 1", "Player 2"],
         numVars: 5,
@@ -28,7 +30,7 @@ function App() {
         });
     }, []);
 
-    const setGame = useCallback((game: GameState | undefined, started: boolean) => {
+    const setGame = useCallback((game: GameModel | undefined, started: boolean) => {
         appUpdater((prev) => {
             prev.game = game;
             prev.gameStarted = started;
@@ -46,7 +48,12 @@ function App() {
                         Now, you too can experience <b>King of K-Maps!</b>
                         <br /><br />
                     </div>
-                    <GameStart app={app} appUpdater={appUpdater} setGame={setGame} />
+                    <GameList app={app} appUpdater={appUpdater} setGame={setGame} onClick={async (gameId: number) => {
+                        const game = await api.getGame(gameId);
+                        if (game) {
+                            setGame(game, true);
+                        }
+                    }} />
                     <div id="game-rules">
                         <h2>How to Play</h2>
                         <ol>
@@ -63,17 +70,51 @@ function App() {
                             <li><a href="https://www.charlie-coleman.com/experiments/kmap/">Karnaugh Map Solver</a></li>
                             <li><a href="https://ee.usc.edu/~redekopp/ee209/slides/EE209Spiral1-5.pdf">Lecture Slides</a></li>
                         </ul>
-
                     </div>
                 </div>
             ) : (
                 <GameView game={app.game!} newGame={async () => {
-                    await api.resetGame();
                     setGame(undefined, false);
                 }} />
             )}
         </div>
     </>);
+}
+
+const GameList = ({ app, appUpdater, setGame, onClick }: { app: AppState, appUpdater: (updater: (app: AppState) => void) => void, setGame: (game: GameModel | undefined, started: boolean) => void, onClick: (gameId: number) => void }) => {
+    const [games, setGames] = useState<GameModel[]>([]);
+
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.getGames().then(setGames);
+        setLoading(false);
+    }, []);
+
+    return (
+        <>
+        {!app.startingNewGame ? (<>
+            <div>
+                <h2>Games</h2>
+                {loading ? (<div>Loading...</div>) : (
+                <ul>
+                    {games.filter((game) => game.phase != endPhase).map((game) => (
+                        <li key={game.id} onClick={() => onClick(game.id!)}>{game.id} - {game.info.numVars} variables, {game.players.join(", ")}, {game.moveCounter} moves, {game.phase} phase</li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            <button onClick={() => {
+                appUpdater((prev) => {
+                    prev.startingNewGame = true;
+                });
+            }}>New Game</button>
+            </>
+        ) : (
+            <GameStart app={app} appUpdater={appUpdater} setGame={setGame} />
+        )}
+        </>
+    );
 }
 
 export default App

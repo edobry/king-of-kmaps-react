@@ -30,10 +30,14 @@ class RemoteGameInterface implements GameInterface {
         return response.text();
     };
 
-    async fetchGame() {
+    async getGames() {
+        return superParse<GameModel[]>(await this.doFetch("/game", "GET"));
+    }
+
+    async getGame(gameId: number) {
         try {
-            return superParse<GameModel>(await this.doFetch("/game", "GET"));
-        } catch (error) {
+            return superParse<GameModel>(await this.doFetch(`/game/${gameId}`, "GET"));
+        } catch {
             return undefined;
         }
     }
@@ -46,27 +50,27 @@ class RemoteGameInterface implements GameInterface {
         );
     }
 
-    async randomizeBoard() {
-        return superParse<GameModel>(await this.doFetch("/game/random", "POST"));
+    async randomizeBoard(gameId: number) {
+        return superParse<GameModel>(await this.doFetch(`/game/${gameId}/random`, "POST"));
     }
 
-    async makeMove(pos: Position) {
+    async makeMove(gameId: number, pos: Position) {
         return superParse<GameModel>(
-            await this.doFetch("/game/move", "POST", {
+            await this.doFetch(`/game/${gameId}/move`, "POST", {
                 body: JSON.stringify({ pos }),
             })
         );
     }
     
-    async groupSelected(selected: Position[]) {
+    async groupSelected(gameId: number, selected: Position[]) {
         return superParse<GameModel>(
-            await this.doFetch("/game/group", "POST", {
+            await this.doFetch(`/game/${gameId}/group`, "POST", {
                 body: JSON.stringify({ selected }),
             })
         );
     }
-    async resetGame() {
-        this.doFetch("/game", "DELETE");
+    async resetGame(gameId: number) {
+        this.doFetch(`/game/${gameId}`, "DELETE");
     }
 }
 

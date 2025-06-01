@@ -241,44 +241,44 @@ superjson.registerCustom<GameModel, string>(
     "game.js"
 );
 
-export class GameModelInterface implements GameInterface {
-    constructor(private gameModel: GameModel | undefined) {}
+// export class GameModelInterface implements GameInterface {
+//     constructor(private gameModel: GameModel | undefined) {}
 
-    initGame(
-        numVars: number,
-        { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}
-    ): Promise<GameModel> {
-        return Promise.resolve(
-            GameModel.initGame(numVars, { players, phase, currentTurn })
-        );
-    }
+//     initGame(
+//         numVars: number,
+//         { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}
+//     ): Promise<GameModel> {
+//         return Promise.resolve(
+//             GameModel.initGame(numVars, { players, phase, currentTurn })
+//         );
+//     }
 
-    makeMove(pos: Position): Promise<GameModel> {
-        if (!this.gameModel) {
-            throw new Error("Game not initialized");
-        }
-        return Promise.resolve(this.gameModel.makeMove(pos));
-    }
+//     makeMove(pos: Position): Promise<GameModel> {
+//         if (!this.gameModel) {
+//             throw new Error("Game not initialized");
+//         }
+//         return Promise.resolve(this.gameModel.makeMove(pos));
+//     }
 
-    randomizeBoard(): Promise<GameModel> {
-        if (!this.gameModel) {
-            throw new Error("Game not initialized");
-        }
-        return Promise.resolve(this.gameModel.randomizeBoard());
-    }
+//     randomizeBoard(): Promise<GameModel> {
+//         if (!this.gameModel) {
+//             throw new Error("Game not initialized");
+//         }
+//         return Promise.resolve(this.gameModel.randomizeBoard());
+//     }
 
-    groupSelected(selected: Position[]): Promise<GameModel> {
-        if (!this.gameModel) {
-            throw new Error("Game not initialized");
-        }
-        return Promise.resolve(this.gameModel.groupSelected(selected));
-    }
+//     groupSelected(selected: Position[]): Promise<GameModel> {
+//         if (!this.gameModel) {
+//             throw new Error("Game not initialized");
+//         }
+//         return Promise.resolve(this.gameModel.groupSelected(selected));
+//     }
 
-    resetGame(): Promise<void> {
-        this.gameModel = undefined;
-        return Promise.resolve(undefined);
-    }
-}
+//     resetGame(): Promise<void> {
+//         this.gameModel = undefined;
+//         return Promise.resolve(undefined);
+//     }
+// }
 
 export const makeCellId = (pos: Position) =>
     pos.map((p) => p.toString()).join(",");

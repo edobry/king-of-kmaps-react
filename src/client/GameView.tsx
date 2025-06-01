@@ -3,6 +3,8 @@ import Grid, { type CellClick } from './Grid';
 import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, positionsEqual } from '../domain/game';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
+import { useOptimisticAction } from '../util/useOptimisticAction';
+import { useFadeLoading } from '../util/useFadeLoading';
 import api from "./api";
 
 const getPlayerName = (game: GameModel, player: Player) =>
@@ -158,73 +160,6 @@ const useSelection = () => {
     return { selected, clearSelection, toggleSelection };
 };
 
-// Hook for optimistic actions with immediate UI updates
-const useOptimisticAction = (setNewGame: (game: GameModel) => void, getCurrentGame: () => GameModel) => {
-    const [isPending, setIsPending] = React.useState(false);
-
-    const executeAction = useCallback(async (
-        action: () => GameModel,
-        apiCall: () => Promise<GameModel>,
-        validation?: () => boolean
-    ) => {
-        if (validation && !validation()) {
-            return;
-        }
-
-        // Store the original state for potential rollback
-        const originalGame = getCurrentGame();
-
-        try {
-            setIsPending(true);
-            
-            // Apply optimistic update immediately
-            const optimisticResult = action();
-            setNewGame(optimisticResult);
-            
-            // Then make server call and reconcile
-            const serverResult = await apiCall();
-            setNewGame(serverResult);
-        } catch (error) {
-            // Rollback to original state
-            setNewGame(originalGame);
-            
-            // Show the server error
-            alert((error as Error).message || "Action failed");
-        } finally {
-            setIsPending(false);
-        }
-    }, [setNewGame, getCurrentGame]);
-
-    return { executeAction, isPending };
-};
-
-/**
- * Custom hook that provides fade in/out loading states for smooth UX.
- * Fast fade in (50ms) for immediate feedback, slower fade out (200ms) for polish.
- */
-const useFadeLoading = (isPending: boolean) => {
-    const [isVisible, setIsVisible] = React.useState(false);
-    const [fadeState, setFadeState] = React.useState<'hidden' | 'fade-in' | 'fade-out'>('hidden');
-
-    React.useEffect(() => {
-        if (isPending) {
-            // Show immediately and start fast fade in
-            setIsVisible(true);
-            setFadeState('fade-in');
-        } else {
-            // Start slower fade out
-            setFadeState('fade-out');
-            // Hide element after fade completes
-            setTimeout(() => {
-                setIsVisible(false);
-                setFadeState('hidden');
-            }, 200);
-        }
-    }, [isPending]);
-
-    return { isVisible, fadeState };
-};
-
 function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
     const [game, setGame] = React.useState(initialGame);
     const { selected, clearSelection, toggleSelection } = useSelection();
@@ -236,41 +171,50 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
         setGame(initialGame);
     }, [initialGame]);
 
-    const makeSelection = (pos: Position) => {
+    const makeSelection = useCallback((pos: Position) => {
         // Only allow selection in score phase for owned cells that aren't grouped
         if (game.phase !== scorePhase) return;
         if (game.getCell(pos) !== game.currentTurn) return;
         if (game.scoring.cellsToPlayerGroup.has(makeCellId(pos))) return;
 
         toggleSelection(pos, game);
-    };
+    }, [game, toggleSelection]);
 
-    const handleMove = (pos: Position) => () => {
+    const handleMove = useCallback((pos: Position) => () => {
         executeAction(
             () => game.makeMove(pos),
-            () => api.makeMove(pos),
+            () => {
+                if (!game.id) throw new Error("Game ID not available");
+                return api.makeMove(game.id, pos);
+            },
             () => isValidMove(game, pos)
         );
-    };
+    }, [game, executeAction]);
 
-    const handleRandomizeBoard = () => {
+    const handleRandomizeBoard = useCallback(() => {
         executeAction(
             () => game.randomizeBoard(),
-            () => api.randomizeBoard(),
+            () => {
+                if (!game.id) throw new Error("Game ID not available");
+                return api.randomizeBoard(game.id);
+            },
             () => game.phase === placePhase
         );
-    };
+    }, [game, executeAction]);
 
-    const makeGroup = () => {
+    const makeGroup = useCallback(() => {
         if (selected.length === 0) return;
         
         executeAction(
             () => game.groupSelected(selected),
-            () => api.groupSelected(selected)
+            () => {
+                if (!game.id) throw new Error("Game ID not available");
+                return api.groupSelected(game.id, selected);
+            }
         );
         
         clearSelection();
-    };
+    }, [game, executeAction, clearSelection, selected]);
 
     // Convert selected array to Map for Grid component
     const selectedMap = useMemo(() => {
@@ -289,7 +233,7 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
         if (game.phase === scorePhase) return (pos: Position) => () => makeSelection(pos);
         
         return undefined;
-    }, [game.phase, isPending]);
+    }, [game.phase, isPending, handleMove, makeSelection]);
 
     return (
         <>
