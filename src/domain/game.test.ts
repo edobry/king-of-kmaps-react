@@ -248,3 +248,31 @@ test("groupSelected: turn not toggled if next player has no ungrouped cells", ()
         game.groupSelected([player0Cells[0], player0Cells[1]]).currentTurn
     ).toEqual(0);
 });
+
+test("makeMove: transitions to score phase when board is full", () => {
+    let game = GameModel.initGame(3, { phase: placePhase, currentTurn: 0 });
+    
+    // For 3-var game, size is 8, so we need 8 moves
+    const positions: Position[] = [
+        [0, 0, 0],
+        [0, 0, 1], 
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 1, 0],
+        [0, 1, 1],
+        [0, 1, 2],
+        [0, 1, 3]
+    ];
+    
+    // Make 7 moves - should still be in place phase
+    for (let i = 0; i < 7; i++) {
+        game = game.makeMove(positions[i]);
+        expect(game.phase).toBe(placePhase);
+        expect(game.moveCounter).toBe(i + 1);
+    }
+    
+    // 8th move should transition to score phase
+    game = game.makeMove(positions[7]);
+    expect(game.phase).toBe(scorePhase);
+    expect(game.moveCounter).toBe(8);
+});

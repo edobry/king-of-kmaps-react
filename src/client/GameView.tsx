@@ -147,10 +147,14 @@ export const GameView: React.FC = () => {
     const handleCellClick = useCallback(async (pos: Position) => {
         if (!game) return;
 
+        console.log('Cell clicked:', pos, 'Game phase:', game.phase, 'Move counter:', game.moveCounter, 'Game size:', game.info.size);
+
         if (game.phase === placePhase) {
             try {
                 setIsPending(true);
+                console.log('Making move...');
                 const updatedGame = await api.makeMove(pos);
+                console.log('Move completed. New phase:', updatedGame.phase, 'New move counter:', updatedGame.moveCounter);
                 setGame(updatedGame);
             } catch (error) {
                 console.error("Move failed:", error);
@@ -161,14 +165,17 @@ export const GameView: React.FC = () => {
         } else if (game.phase === scorePhase) {
             // Handle selection logic - no server call needed
             const cellValue = game.getCell(pos);
+            console.log('Score phase selection. Cell value:', cellValue, 'Current turn:', game.currentTurn);
             
             // Only allow selecting cells owned by current player
             if (cellValue !== game.currentTurn) {
+                console.log('Cell not owned by current player, ignoring');
                 return;
             }
 
             // Check if cell is already grouped
             if (game.scoring.cellsToPlayerGroup.has(makeCellId(pos))) {
+                console.log('Cell already grouped, ignoring');
                 return;
             }
 
@@ -176,12 +183,14 @@ export const GameView: React.FC = () => {
             selected.forEach(p => selectedMap.set(makeCellId(p), p));
 
             const isCurrentlySelected = isSelected(selectedMap, pos);
+            console.log('Is currently selected:', isCurrentlySelected, 'Selected count:', selected.length);
 
             if (isCurrentlySelected) {
                 // Deselect the cell
                 const newSelected = selected.filter(p => 
                     !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
                 );
+                console.log('Deselecting cell, new count:', newSelected.length);
                 setSelected(newSelected);
             } else {
                 // Select the cell - check adjacency if we already have selections
@@ -192,10 +201,12 @@ export const GameView: React.FC = () => {
                     );
                     
                     if (!isAdjacentToSelection) {
+                        console.log('Cell not adjacent to selection, ignoring');
                         return; // Not adjacent, can't select
                     }
                 }
                 
+                console.log('Selecting cell, new count:', selected.length + 1);
                 setSelected([...selected, pos]);
             }
         }
