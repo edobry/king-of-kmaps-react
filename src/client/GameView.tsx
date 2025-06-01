@@ -1,6 +1,6 @@
-import React, { useEffect, useState, Fragment, useMemo, useCallback } from "react";
+import React, { useCallback, useMemo, Fragment } from "react";
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, isValidGroupSelection } from '../domain/game';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 import api from "./api";
@@ -107,162 +107,134 @@ const Winner = (game: GameModel) => {
     );
 }
 
-export const GameView: React.FC = () => {
-    const [game, setGame] = useState<GameModel | undefined>();
-    const [selected, setSelected] = useState<Position[]>([]);
-    const [isPending, setIsPending] = useState(false);
+// Simple hook for selection state
+const useSelection = () => {
+    const [selected, setSelected] = React.useState<Position[]>([]);
 
-    useEffect(() => {
-        // Initialize game from server
-        const initializeGame = async () => {
-            try {
-                let initialGame = await api.fetchGame();
-                if (!initialGame) {
-                    // No game exists, create a new one
-                    initialGame = await api.initGame(3);
-                }
-                setGame(initialGame);
-            } catch (error) {
-                console.error("Failed to initialize game:", error);
-                // Fallback to local game
-                const fallbackGame = GameModel.initGame(3);
-                setGame(fallbackGame);
-            }
-        };
-        
-        initializeGame();
+    const clearSelection = useCallback(() => {
+        setSelected([]);
     }, []);
 
-    // Create cellClick function based on game phase
-    const cellClick: CellClick | undefined = useMemo(() => {
-        if (!game || game.phase === endPhase || isPending) {
-            return undefined;
-        }
+    const toggleSelection = useCallback((pos: Position, game: GameModel) => {
+        setSelected(currentSelected => {
+            const selectedMap = new Map<string, Position>();
+            currentSelected.forEach(p => selectedMap.set(makeCellId(p), p));
 
-        return (pos: Position) => () => {
-            handleCellClick(pos);
-        };
-    }, [game?.phase, isPending]);
+            const isCurrentlySelected = isSelected(selectedMap, pos);
 
-    const handleCellClick = useCallback(async (pos: Position) => {
-        if (!game) return;
-
-        console.log('Cell clicked:', pos, 'Game phase:', game.phase, 'Move counter:', game.moveCounter, 'Game size:', game.info.size);
-
-        if (game.phase === placePhase) {
-            try {
-                setIsPending(true);
-                console.log('Making move...');
-                const updatedGame = await api.makeMove(pos);
-                console.log('Move completed. New phase:', updatedGame.phase, 'New move counter:', updatedGame.moveCounter);
-                setGame(updatedGame);
-            } catch (error) {
-                console.error("Move failed:", error);
-                alert((error as Error).message || "Move failed");
-            } finally {
-                setIsPending(false);
-            }
-        } else if (game.phase === scorePhase) {
-            // Handle selection logic - no server call needed
-            const cellValue = game.getCell(pos);
-            console.log('Score phase selection. Cell value:', cellValue, 'Current turn:', game.currentTurn);
-            
-            // Only allow selecting cells owned by current player
-            if (cellValue !== game.currentTurn) {
-                console.log('Cell not owned by current player, ignoring');
-                return;
-            }
-
-            // Check if cell is already grouped
-            if (game.scoring.cellsToPlayerGroup.has(makeCellId(pos))) {
-                console.log('Cell already grouped, ignoring');
-                return;
-            }
-
-            // Use functional state update to avoid stale closure
-            setSelected(currentSelected => {
-                const selectedMap = new Map<string, Position>();
-                currentSelected.forEach(p => selectedMap.set(makeCellId(p), p));
-
-                const isCurrentlySelected = isSelected(selectedMap, pos);
-                console.log('Is currently selected:', isCurrentlySelected, 'Selected count:', currentSelected.length);
-
-                if (isCurrentlySelected) {
-                    // Deselect the cell
-                    const newSelected = currentSelected.filter(p => 
-                        !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
+            if (isCurrentlySelected) {
+                // Deselect the cell
+                return currentSelected.filter(p => 
+                    !(p[0] === pos[0] && p[1] === pos[1] && p[2] === pos[2])
+                );
+            } else {
+                // Select the cell - check adjacency if we already have selections
+                if (currentSelected.length > 0) {
+                    const adjacencies = getAdjacencies(game.info, pos);
+                    const isAdjacentToSelection = adjacencies.some(adj => 
+                        isSelected(selectedMap, adj)
                     );
-                    console.log('Deselecting cell, new count:', newSelected.length);
-                    return newSelected;
-                } else {
-                    // Select the cell - check adjacency if we already have selections
-                    if (currentSelected.length > 0) {
-                        const adjacencies = getAdjacencies(game.info, pos);
-                        const isAdjacentToSelection = adjacencies.some(adj => 
-                            isSelected(selectedMap, adj)
-                        );
-                        
-                        if (!isAdjacentToSelection) {
-                            console.log('Cell not adjacent to selection, ignoring');
-                            return currentSelected; // Not adjacent, can't select
-                        }
-                    }
                     
-                    console.log('Selecting cell, new count:', currentSelected.length + 1);
-                    return [...currentSelected, pos];
+                    if (!isAdjacentToSelection) {
+                        return currentSelected; // Not adjacent, can't select
+                    }
                 }
-            });
-        }
-    }, [game]); // Remove selected from dependencies to avoid stale closure
+                
+                return [...currentSelected, pos];
+            }
+        });
+    }, []);
 
-    const handleGroupSelection = useCallback(async () => {
-        if (!game || selected.length === 0) return;
-        
+    return { selected, clearSelection, toggleSelection };
+};
+
+// Simple hook for optimistic actions  
+const useOptimisticAction = (game: GameModel, setNewGame: (game: GameModel) => void) => {
+    const [isPending, setIsPending] = React.useState(false);
+
+    const executeAction = useCallback(async (
+        action: () => GameModel,
+        apiCall: () => Promise<GameModel>,
+        validation?: () => boolean
+    ) => {
+        if (validation && !validation()) {
+            return;
+        }
+
         try {
             setIsPending(true);
-            const updatedGame = await api.groupSelected(selected);
-            setGame(updatedGame);
-            setSelected([]);
+            const result = await apiCall();
+            setNewGame(result);
         } catch (error) {
-            console.error("Group selection failed:", error);
-            alert((error as Error).message || "Group selection failed");
+            console.error("Action failed:", error);
+            alert((error as Error).message || "Action failed");
         } finally {
             setIsPending(false);
         }
-    }, [game, selected]);
+    }, [setNewGame]);
 
-    const handleRandomize = useCallback(async () => {
-        if (!game) return;
-        
+    return { executeAction, isPending };
+};
+
+function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
+    const [game, setGame] = React.useState(initialGame);
+    const { selected, clearSelection, toggleSelection } = useSelection();
+    const { executeAction, isPending } = useOptimisticAction(game, setGame);
+
+    // Update local game state when prop changes
+    React.useEffect(() => {
+        setGame(initialGame);
+    }, [initialGame]);
+
+    const makeSelection = useCallback((pos: Position) => {
+        // Only allow selection in score phase for owned cells that aren't grouped
+        if (game.phase !== scorePhase) return;
+        if (game.getCell(pos) !== game.currentTurn) return;
+        if (game.scoring.cellsToPlayerGroup.has(makeCellId(pos))) return;
+
+        toggleSelection(pos, game);
+    }, [toggleSelection, game]);
+
+    const handleMove = useCallback((pos: Position) => () => {
+        executeAction(
+            () => game.makeMove(pos),
+            () => api.makeMove(pos),
+            () => isValidMove(game, pos)
+        );
+    }, [executeAction, game]);
+
+    const handleRandomizeBoard = useCallback(async () => {
         try {
-            setIsPending(true);
             const updatedGame = await api.randomizeBoard();
             setGame(updatedGame);
         } catch (error) {
             console.error("Randomize failed:", error);
             alert((error as Error).message || "Randomize failed");
-        } finally {
-            setIsPending(false);
-        }
-    }, [game]);
-
-    const handleNewGame = useCallback(async () => {
-        try {
-            setIsPending(true);
-            const newGame = await api.initGame(3);
-            setGame(newGame);
-            setSelected([]);
-        } catch (error) {
-            console.error("New game failed:", error);
-            alert((error as Error).message || "New game failed");
-        } finally {
-            setIsPending(false);
         }
     }, []);
 
-    if (!game) {
-        return <div>Loading...</div>;
-    }
+    const makeGroup = useCallback(() => {
+        if (selected.length === 0) return;
+        
+        executeAction(
+            () => game.groupSelected(selected),
+            () => api.groupSelected(selected),
+            () => isValidGroupSelection(game, selected)
+        );
+        
+        clearSelection();
+    }, [executeAction, selected, game, clearSelection]);
+
+    const cellClick = useMemo<CellClick | undefined>(() => {
+        if (game.phase === endPhase || isPending) {
+            return undefined;
+        }
+
+        return {
+            [placePhase]: handleMove,
+            [scorePhase]: (pos: Position) => () => makeSelection(pos)
+        }[game.phase];
+    }, [game.phase, handleMove, makeSelection, isPending]);
 
     // Convert selected array to Map for Grid component
     const selectedMap = new Map<string, Position>();
@@ -275,9 +247,9 @@ export const GameView: React.FC = () => {
             <GameControls
                 game={game}
                 selectedCount={selected.length}
-                onNewGame={handleNewGame}
-                onRandomizeBoard={handleRandomize}
-                onMakeGroup={handleGroupSelection}
+                onNewGame={newGame}
+                onRandomizeBoard={handleRandomizeBoard}
+                onMakeGroup={makeGroup}
             />
             <div id="board">
                 {game.board.map((_, zPos) => (
@@ -297,6 +269,6 @@ export const GameView: React.FC = () => {
             />
         </>
     );
-};
+}
 
-export default GameView
+export default GameView;
