@@ -85,6 +85,7 @@ router.post("/move", async (req: express.Request, res: express.Response) => {
 
     const gameModel = game.makeMove(body.pos);
     await gameDb.setGame(gameModel);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     res.send(superjson.stringify(gameModel));
 });
@@ -111,6 +112,8 @@ router.post("/group", async (req: express.Request, res: express.Response) => {
     try {
         game.groupSelected(selected);
         await gameDb.setGame(game);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
         res.send(superjson.stringify(game));
     } catch (error) {
         res.status(400).json({

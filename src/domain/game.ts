@@ -1,6 +1,5 @@
 import type { InsertGame, SelectGame } from "../server/schema";
 import type { Unary } from "../util/util";
-import { useImmer } from "use-immer";
 import { isValidRectangle } from "./adjacency";
 import type { GameInterface } from "./state";
 import superjson from "superjson";
@@ -48,6 +47,31 @@ export type ScoringState = {
     numCellsGrouped: {
         [key in Player]: number;
     };
+};
+
+export const isValidMove = (game: GameModel, pos: Position): boolean => {
+    return game.getCell(pos) === null;
+};
+
+export const isValidGroupSelection = (game: GameModel, selected: Position[]): boolean => {
+    if (selected.length === 0) return false;
+
+    // Check if all selected cells belong to current player
+    if (selected.some((pos) => game.getCell(pos) !== game.currentTurn)) {
+        return false;
+    }
+
+    // Check if selection is a power of two (for multi-cell groups)
+    if (selected.length > 1 && !Number.isInteger(Math.log2(selected.length))) {
+        return false;
+    }
+
+    // Check if selection forms a valid rectangle
+    if (!isValidRectangle(game.info, selected)) {
+        return false;
+    }
+
+    return true;
 };
 
 export class GameModel {
@@ -118,7 +142,7 @@ export class GameModel {
     }
 
     makeMove(pos: Position): GameModel {
-        if (this.getCell(pos) !== null) {
+        if (!isValidMove(this, pos)) {
             return this;
         }
 
@@ -164,7 +188,10 @@ export class GameModel {
         }
 
         this.scoring.groups[this.currentTurn].push(selected);
-        this.scoring.numCellsGrouped[this.currentTurn] += selected.length;
+        this.scoring.numCellsGrouped = {
+            ...this.scoring.numCellsGrouped,
+            [this.currentTurn]: this.scoring.numCellsGrouped[this.currentTurn] + selected.length
+        };
         selected.forEach((pos) =>
             this.scoring.cellsToPlayerGroup.set(
                 makeCellId(pos),
@@ -186,7 +213,17 @@ export class GameModel {
         }
 
         return this;
-    };
+    }
+
+    /**
+     * Creates a deep clone of this GameModel.
+     * Use for optimistic updates: game.clone().groupSelected(selected)
+     */
+    clone(): GameModel {
+        const cloned = structuredClone(this);
+        Object.setPrototypeOf(cloned, Object.getPrototypeOf(this));
+        return cloned;
+    }
 
     getWinner(): Player | undefined {
         const player0Groups = this.scoring.groups[0];

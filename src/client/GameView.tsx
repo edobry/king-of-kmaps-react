@@ -1,69 +1,184 @@
-import { Fragment, useCallback, useMemo, useOptimistic, useTransition } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId } from '../domain/game';
-import { useUpdater, useFadeLoading } from './utils/state';
+import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, isValidGroupSelection } from '../domain/game';
+import { useUpdater, useOptimisticAction, useSelection } from './utils/state';
 import api from './api';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
+
+type GameAction = 
+    | { type: 'move', pos: Position }
+    | { type: 'group', selected: Position[] };
+
+// Type-safe action creators
+const createMoveAction = (pos: Position): GameAction => ({ type: 'move', pos });
+const createGroupAction = (selected: Position[]): GameAction => ({ type: 'group', selected });
+
+// Validation helpers
+const isAlreadyGrouped = (game: GameModel, selected: Position[]): boolean => {
+    return selected.every(pos => game.scoring.cellsToPlayerGroup.has(makeCellId(pos)));
+};
+
+const isValidGroupAction = (game: GameModel, selected: Position[]): boolean => {
+    if (selected.length === 0) return false;
+    if (selected.some(pos => game.getCell(pos) !== game.currentTurn)) return false;
+    return true;
+};
+
+const gameActionReducer = (currentGame: GameModel, action: GameAction): GameModel => {
+    try {
+        switch (action.type) {
+            case 'move': {
+                return currentGame.clone().makeMove(action.pos);
+            }
+            case 'group': {
+                // Check if all selected cells are already grouped (action already applied)
+                if (isAlreadyGrouped(currentGame, action.selected)) {
+                    return currentGame;
+                }
+                
+                // Validate the group action
+                if (!isValidGroupAction(currentGame, action.selected)) {
+                    return currentGame;
+                }
+                
+                // Clone then mutate - clean and obvious!
+                return currentGame.clone().groupSelected(action.selected);
+            }
+            default:
+                return currentGame;
+        }
+    } catch {
+        return currentGame;
+    }
+};
 
 const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
         ? `${game.players[player]} (${player})`
         : `Player ${player}`;
 
-function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
-    const { state: selected, setNewState: setNewSelected, makeHandler: makeSelectedHandler } = useUpdater<Map<string, Position>>(new Map());
-    const { state: game, setNewState: setNewGame } = useUpdater(initialGame);
+const GameControls = ({ 
+    game, 
+    selected, 
+    onNewGame, 
+    onRandomizeBoard, 
+    onMakeGroup 
+}: {
+    game: GameModel;
+    selected: Map<string, Position>;
+    onNewGame: () => Promise<void>;
+    onRandomizeBoard: () => void;
+    onMakeGroup: () => void;
+}) => (
+    <div id="controls">
+        <button id="newGame" onClick={onNewGame}>New Game</button>
+        {game.phase === placePhase && (
+            <button id="randomizeBoard" onClick={onRandomizeBoard}>Randomize</button>
+        )}
+        {game.phase === scorePhase && (
+            <button 
+                id="groupSelected" 
+                onClick={onMakeGroup}
+                disabled={selected.size === 0}
+            >
+                Group
+            </button>
+        )}
+    </div>
+);
 
-    const [isPending, startTransition] = useTransition();
-    const { isVisible: showLoading, opacity: loadingOpacity } = useFadeLoading(isPending);
-    
-    const [optimisticGame, setOptimisticGame] = useOptimistic(
-        game, 
-        (currentGame: GameModel, action: { type: 'move' | 'group', pos?: Position, selected?: Position[] }) => {
-            const newGame = new GameModel(currentGame.toRecord());
-            
-            switch (action.type) {
-                case 'move':
-                    return newGame.makeMove(action.pos!);
-                case 'group':
-                    return newGame.groupSelected(action.selected!);
-                default:
-                    return currentGame;
+const GameInfo = ({
+    optimisticGame, 
+    isPending
+}: {
+    optimisticGame: GameModel;
+    isPending: boolean;
+}) => {
+    return (<div id="info">
+        <b>Variables:</b> {optimisticGame.info.numVars} ({Object.entries(optimisticGame.info.vars).reverse().map(([key, value]) =>
+            `${key} = ${value.join(", ")}`).join(" | ")})<br />
+        <b>Grid Size:</b> {optimisticGame.info.size} ({optimisticGame.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
+        <br />
+        {optimisticGame.phase !== endPhase && (
+            <>
+                <b>Current Phase:</b> {optimisticGame.phase}<br />
+                <b>Current Turn:</b> {isPending ? "Waiting..." : getPlayerName(optimisticGame, optimisticGame.currentTurn)}<br />
+            </>
+        )}
+        {optimisticGame.phase === placePhase && (
+            <>
+                <br />
+                Move Counter: {optimisticGame.moveCounter}
+            </>
+        )}
+        {optimisticGame.phase === scorePhase && (
+            <>
+                <br />
+                <b>Ungrouped</b>:<br />
+                {Object.entries(optimisticGame.scoring.numCellsGrouped).map(([player, num]) => {
+                    const ungrouped = (optimisticGame.info.size / 2) - num;
+                    return (
+                        <Fragment key={player}>
+                            {getPlayerName(optimisticGame, parseInt(player) as Player)}: {ungrouped} / {optimisticGame.info.size / 2}<br />
+                        </Fragment>
+                    );
+                })}
+            </>
+        )}
+        {[scorePhase, endPhase].includes(optimisticGame.phase) && (<>
+            <br />
+            <b>Groups:</b>
+            <br />
+            {Object.entries(optimisticGame.scoring.groups).map(([player, groups]) => {
+                return (
+                    <Fragment key={player}>
+                        {getPlayerName(optimisticGame, parseInt(player) as Player)}: {groups.length}<br />
+                    </Fragment>
+                );
+            })}
+        </>)}
+        {optimisticGame.phase === endPhase && Winner(optimisticGame)}
+    </div>);
+}
+
+const Winner = (game: GameModel) => {
+    const winner = game.getWinner();
+    return (
+        <>
+            <br />
+            {winner !== undefined
+                ? <b>Winner: {getPlayerName(game, winner)}</b>
+                : <b>Tie game!</b>
             }
-        }
+        </>
     );
+}
 
-    const clearSelection = useCallback(() => {
-        setNewSelected(new Map());
-    }, [setNewSelected]);
+function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
+    const { state: game, setNewState: setNewGame } = useUpdater(initialGame);
+    const { selected, clearSelection, toggleSelection } = useSelection();
+    
+    const {
+        optimisticState: optimisticGame,
+        executeAction,
+        isPending,
+        showLoading,
+        loadingOpacity
+    } = useOptimisticAction(game, gameActionReducer);
 
-    const makeSelection = useCallback((pos: Position) => makeSelectedHandler((prev: Map<string, Position>) => {
-        if (optimisticGame.getCell(pos) !== optimisticGame.currentTurn) {
-            return prev;
-        }
+    const makeSelection = useCallback((pos: Position) => {
+        return toggleSelection(pos, optimisticGame, isSelected, makeCellId, getAdjacencies);
+    }, [toggleSelection, optimisticGame]);
 
-        if (isSelected(selected, pos)) {
-            prev.delete(makeCellId(pos));
-            return prev;
-        }
-        
-        if (selected.size !== 0 && !getAdjacencies(optimisticGame.info, pos).some(adj => isSelected(selected, adj)))
-            return prev;
-
-        prev.set(makeCellId(pos), pos);
-
-        return prev;
-    }), [optimisticGame, selected, makeSelectedHandler]);
-
-    const handleMove = useCallback((pos: Position) => async () => {
-        startTransition(async () => {
-            setOptimisticGame({ type: 'move', pos });
-        
-            const newGame = await api.makeMove(pos);
-            setNewGame(newGame);
-        });
-    }, [setOptimisticGame, setNewGame]);
+    const handleMove = useCallback((pos: Position) => () => {
+        executeAction(
+            createMoveAction(pos),
+            () => api.makeMove(pos),
+            setNewGame,
+            () => isValidMove(optimisticGame, pos)
+        );
+    }, [executeAction, optimisticGame, setNewGame]);
 
     const handleRandomizeBoard = useCallback(async () => {
         try {
@@ -73,6 +188,25 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
             alert((error as Error).message ?? "Unknown error");
         }
     }, [setNewGame]);
+
+    const makeGroup = useCallback(() => {
+        // Prevent concurrent group operations
+        if (isPending) {
+            return;
+        }
+        
+        const selectedPositions = Array.from(selected.values());
+        
+        executeAction(
+            createGroupAction(selectedPositions),
+            () => api.groupSelected(selectedPositions),
+            setNewGame,
+            () => isValidGroupSelection(optimisticGame, selectedPositions),
+            () => clearSelection() // Clear selection on validation failure
+        );
+        
+        clearSelection(); // Always clear selection after grouping
+    }, [executeAction, selected, optimisticGame, setNewGame, clearSelection, isPending]);
 
     const cellClick = useMemo<CellClick | undefined>(() => {
         if(optimisticGame.phase === endPhase || isPending) {
@@ -84,33 +218,19 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
             [scorePhase]: (pos: Position) => makeSelection(pos)
         }[optimisticGame.phase];
     }, [optimisticGame.phase, handleMove, makeSelection, isPending]);
-
-    const makeGroup = useCallback((async () => {
-        try {
-            startTransition(async () => {
-                setOptimisticGame({ type: 'group', selected: Array.from(selected.values()) });
-
-                const newGame = await api.groupSelected(Array.from(selected.values()));
-                setNewGame(newGame);
-            });
-        } catch (error) {
-            alert((error as Error).message ?? "Unknown error");
-        } finally {
-            clearSelection();
-        }
-    }), [selected, setNewGame, clearSelection, setOptimisticGame]);
     
     return (<>
-        <GameInfo game={optimisticGame} isPending={showLoading} />
-        <div id="controls">
-            <button id="newGame" onClick={newGame}>New Game</button>
-            {optimisticGame.phase === placePhase && (
-                <button id="randomizeBoard" onClick={handleRandomizeBoard}>Randomize</button>
-            )}
-            {optimisticGame.phase === scorePhase && selected.size > 0 && (
-                <button id="groupSelected" onClick={makeGroup}>Group</button>
-            )}
-        </div>
+        <GameInfo 
+            optimisticGame={optimisticGame}
+            isPending={showLoading}
+        />
+        <GameControls 
+            game={optimisticGame}
+            selected={selected}
+            onNewGame={newGame}
+            onRandomizeBoard={handleRandomizeBoard}
+            onMakeGroup={makeGroup}
+        />
         <div id="board">
             {optimisticGame.board.map((_, zPos) => (
                 <Grid 
@@ -125,64 +245,6 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
             ))}
         </div>
     </>);
-}
-
-const GameInfo = ({game, isPending}: {game: GameModel, isPending: boolean}) => {
-    return (<div id="info">
-        <b>Variables:</b> {game.info.numVars} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
-            `${key} = ${value.join(", ")}`).join(" | ")})<br />
-        <b>Grid Size:</b> {game.info.size} ({game.info.dimensions.map(d => `2^${d}`).join(" x ")})<br />
-        <br />
-        {game.phase !== endPhase && (
-            <>
-                <b>Current Phase:</b> {game.phase}<br />
-                <b>Current Turn:</b> {isPending ? "Waiting..." : getPlayerName(game, game.currentTurn)}<br />
-            </>
-        )}
-        {game.phase === placePhase && (
-            <>
-                <br />
-                Move Counter: {game.moveCounter}
-            </>
-        )}
-        {game.phase === scorePhase && (
-            <>
-                <br />
-                <b>Ungrouped</b>:<br />
-                {Object.entries(game.scoring.numCellsGrouped).map(([player, num]) => (
-                    <Fragment key={player}>
-                        {getPlayerName(game, parseInt(player) as Player)}: {(game.info.size / 2) - num} / {game.info.size / 2}<br />
-                    </Fragment>
-                ))}
-            </>
-        )}
-        {[scorePhase, endPhase].includes(game.phase) && (<>
-            <br />
-            <b>Groups:</b>
-            <br />
-            {Object.entries(game.scoring.groups).map(([player, groups]) => (
-                <Fragment key={player}>
-                    {getPlayerName(game, parseInt(player) as Player)}: {groups.length}<br />
-                </Fragment>
-            ))}
-        </>)}
-        {game.phase === endPhase && Winner(game)}
-    </div>);
-}
-
-
-
-const Winner = (game: GameModel) => {
-    const winner = game.getWinner();
-    return (
-        <>
-            <br />
-            {winner !== undefined
-                ? <b>Winner: {getPlayerName(game, winner)}</b>
-                : <b>Tie game!</b>
-            }
-        </>
-    );
 }
 
 export default GameView
