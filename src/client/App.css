@@ -151,6 +151,19 @@ text-align: center;
   font-weight: bold;
   z-index: 10;
   border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s ease-in-out;
-  opacity: var(--loading-opacity, 1);
+}
+
+.loading-overlay.fade-in {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.loading-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
 }

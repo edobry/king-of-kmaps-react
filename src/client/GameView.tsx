@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, Fragment } from "react";
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, isValidGroupSelection, positionsEqual } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, positionsEqual } from '../domain/game';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 import api from "./api";
@@ -159,7 +159,7 @@ const useSelection = () => {
 };
 
 // Hook for optimistic actions with immediate UI updates
-const useOptimisticAction = (setNewGame: (game: GameModel) => void) => {
+const useOptimisticAction = (setNewGame: (game: GameModel) => void, getCurrentGame: () => GameModel) => {
     const [isPending, setIsPending] = React.useState(false);
 
     const executeAction = useCallback(async (
@@ -170,6 +170,9 @@ const useOptimisticAction = (setNewGame: (game: GameModel) => void) => {
         if (validation && !validation()) {
             return;
         }
+
+        // Store the original state for potential rollback
+        const originalGame = getCurrentGame();
 
         try {
             setIsPending(true);
@@ -182,82 +185,113 @@ const useOptimisticAction = (setNewGame: (game: GameModel) => void) => {
             const serverResult = await apiCall();
             setNewGame(serverResult);
         } catch (error) {
-            console.error("Action failed:", error);
-            alert((error as Error).message || "Action failed");
+            console.error("Server validation failed:", error);
             
-            // On error, we could rollback to previous state here if needed
-            // For now, server will maintain authoritative state
+            // Rollback to original state
+            setNewGame(originalGame);
+            
+            // Show the server error
+            alert((error as Error).message || "Action failed");
         } finally {
             setIsPending(false);
         }
-    }, [setNewGame]);
+    }, [setNewGame, getCurrentGame]);
 
     return { executeAction, isPending };
+};
+
+/**
+ * Custom hook that provides fade in/out loading states for smooth UX.
+ * Fast fade in (50ms) for immediate feedback, slower fade out (200ms) for polish.
+ */
+const useFadeLoading = (isPending: boolean) => {
+    const [isVisible, setIsVisible] = React.useState(false);
+    const [fadeState, setFadeState] = React.useState<'hidden' | 'fade-in' | 'fade-out'>('hidden');
+
+    React.useEffect(() => {
+        if (isPending) {
+            // Show immediately and start fast fade in
+            setIsVisible(true);
+            setFadeState('fade-in');
+        } else {
+            // Start slower fade out
+            setFadeState('fade-out');
+            // Hide element after fade completes
+            setTimeout(() => {
+                setIsVisible(false);
+                setFadeState('hidden');
+            }, 200);
+        }
+    }, [isPending]);
+
+    return { isVisible, fadeState };
 };
 
 function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: () => Promise<void> }) {
     const [game, setGame] = React.useState(initialGame);
     const { selected, clearSelection, toggleSelection } = useSelection();
-    const { executeAction, isPending } = useOptimisticAction(setGame);
+    const { executeAction, isPending } = useOptimisticAction(setGame, () => game);
+    const { isVisible, fadeState } = useFadeLoading(isPending);
 
     // Update local game state when prop changes
     React.useEffect(() => {
         setGame(initialGame);
     }, [initialGame]);
 
-    const makeSelection = useCallback((pos: Position) => {
+    const makeSelection = (pos: Position) => {
         // Only allow selection in score phase for owned cells that aren't grouped
         if (game.phase !== scorePhase) return;
         if (game.getCell(pos) !== game.currentTurn) return;
         if (game.scoring.cellsToPlayerGroup.has(makeCellId(pos))) return;
 
         toggleSelection(pos, game);
-    }, [toggleSelection, game]);
+    };
 
-    const handleMove = useCallback((pos: Position) => () => {
+    const handleMove = (pos: Position) => () => {
         executeAction(
             () => game.makeMove(pos),
             () => api.makeMove(pos),
             () => isValidMove(game, pos)
         );
-    }, [executeAction, game]);
+    };
 
-    const handleRandomizeBoard = useCallback(() => {
+    const handleRandomizeBoard = () => {
         executeAction(
             () => game.randomizeBoard(),
             () => api.randomizeBoard(),
             () => game.phase === placePhase
         );
-    }, [executeAction, game]);
+    };
 
-    const makeGroup = useCallback(() => {
+    const makeGroup = () => {
         if (selected.length === 0) return;
         
         executeAction(
             () => game.groupSelected(selected),
-            () => api.groupSelected(selected),
-            () => isValidGroupSelection(game, selected)
+            () => api.groupSelected(selected)
         );
         
         clearSelection();
-    }, [executeAction, selected, game, clearSelection]);
-
-    const cellClick = useMemo<CellClick | undefined>(() => {
-        if (game.phase === endPhase || isPending) {
-            return undefined;
-        }
-
-        return {
-            [placePhase]: handleMove,
-            [scorePhase]: (pos: Position) => () => makeSelection(pos)
-        }[game.phase];
-    }, [game.phase, handleMove, makeSelection, isPending]);
+    };
 
     // Convert selected array to Map for Grid component
-    const selectedMap = new Map<string, Position>();
-    selected.forEach(pos => {
-        selectedMap.set(makeCellId(pos), pos);
-    });
+    const selectedMap = useMemo(() => {
+        const map = new Map<string, Position>();
+        selected.forEach(pos => {
+            map.set(makeCellId(pos), pos);
+        });
+        return map;
+    }, [selected]);
+
+    // Determine cell click handler based on game phase
+    const cellClick = useMemo<CellClick | undefined>(() => {
+        if (game.phase === endPhase || isPending) return undefined;
+        
+        if (game.phase === placePhase) return handleMove;
+        if (game.phase === scorePhase) return (pos: Position) => () => makeSelection(pos);
+        
+        return undefined;
+    }, [game.phase, isPending]);
 
     return (
         <>
@@ -281,7 +315,8 @@ function GameView({ game: initialGame, newGame }: { game: GameModel, newGame: ()
                         game={game}
                         selected={selectedMap}
                         cellClick={cellClick}
-                        isPending={isPending}
+                        isPending={isVisible}
+                        fadeState={fadeState}
                     />
                 ))}
             </div>

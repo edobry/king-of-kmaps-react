@@ -3,13 +3,13 @@ import { getCellClasses } from "../domain/grid";
 
 export type CellClick = (pos: Position) => () => void;
 
-export default function Grid({ zPos, game, selected, cellClick, isPending, loadingOpacity = 1 }: { 
+export default function Grid({ zPos, game, selected, cellClick, isPending, fadeState }: { 
   zPos: number, 
   game: GameModel, 
   selected: Map<string, Position>, 
   cellClick?: CellClick, 
   isPending: boolean,
-  loadingOpacity?: number
+  fadeState?: 'hidden' | 'fade-in' | 'fade-out'
 }) {
   // Calculate dynamic grid dimensions
   const numCols = game.board[zPos][0].length;
@@ -22,8 +22,7 @@ export default function Grid({ zPos, game, selected, cellClick, isPending, loadi
         className="grid"
         style={{
           '--grid-cols': numCols,
-          '--grid-rows': numRows,
-          '--loading-opacity': loadingOpacity
+          '--grid-rows': numRows
         } as React.CSSProperties}
       >
         <div className="corner-cell"></div>
@@ -52,11 +51,9 @@ export default function Grid({ zPos, game, selected, cellClick, isPending, loadi
       </div>
       
       {/* Loading overlay with fade effect */}
-      {isPending && (
-        <div className="loading-overlay">
-          Loading...
-        </div>
-      )}
+      <div className={`loading-overlay ${fadeState || ''}`}>
+        Loading...
+      </div>
     </div>
   )
 }
