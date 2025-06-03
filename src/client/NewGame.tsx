@@ -2,14 +2,13 @@ import { useCallback, useState } from "react";
 
 import api from "./api";
 import { Link, useNavigate } from "react-router";
-import { localGameType, onlineGameType, type GameType } from "../domain/game";
+import { localGameType, type GameType } from "../domain/game";
 
 type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
-export default function NewGame() {
+export default function NewGame({ gameType }: { gameType: GameType }) {
     const navigate = useNavigate();
 
-    const [gameType, setGameType] = useState<GameType>(localGameType);
     const [numVars, setNumVars] = useState(5);
 
     const [players, setPlayers] = useState<string[]>([]);
@@ -42,7 +41,6 @@ export default function NewGame() {
                 {"<"} Continue Game
             </Link>
             <div id="game-inputs">
-                <GameTypeSelect gameType={gameType} setGameType={setGameType} />
                 <br />
                 <b>Number of Variables:</b>{" "}
                 <input
@@ -69,18 +67,3 @@ export default function NewGame() {
         </>
     );
 }
-
-const GameTypeSelect = ({ gameType, setGameType }: { gameType: GameType, setGameType: (gameType: GameType) => void }) => {
-    return (
-        <div className="game-type">
-            <label htmlFor="game-type-local" className={`game-type-select ${gameType === localGameType ? "selected" : ""}`}>
-                <input type="radio" name="game-type" id="game-type-local" value={localGameType} checked={gameType === localGameType} onChange={() => setGameType(localGameType)} />
-                Local
-            </label>
-            <label htmlFor="game-type-online" className={`game-type-select ${gameType === onlineGameType ? "selected" : ""}`}>
-                <input type="radio" name="game-type" id="game-type-online" value={onlineGameType} checked={gameType === onlineGameType} onChange={() => setGameType(onlineGameType)} />
-                Online
-            </label>
-        </div>
-    );
-};

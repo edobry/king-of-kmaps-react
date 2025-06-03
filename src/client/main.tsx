@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, redirect, RouterProvider } from "react-router";
 
 import App from './App'
 import GameView from './GameView';
@@ -35,8 +35,15 @@ const router = createBrowserRouter([
                 Component: GameView,
                 loader: async ({ params }) => {
                     const gameId = params.gameId;
-                    if (!gameId) throw new Error("Game ID is required");
+
+                    if (!gameId)
+                        return redirect("/");
+
                     const game = await api.getGame(Number(gameId));
+
+                    if (!game)
+                        return redirect("/");
+
                     return { game };
                 },
             },

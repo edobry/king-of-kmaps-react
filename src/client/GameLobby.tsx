@@ -1,29 +1,44 @@
 import { Link, useLoaderData, useNavigate } from "react-router";
-import { GameModel } from "../domain/game";
-import { Suspense, use } from "react";
+import { GameModel, localGameType, onlineGameType, type GameType } from "../domain/game";
+import { Suspense, use, useState } from "react";
+import { GameTypeSelect } from "./GameTypeSelect";
 
 export const GameLobby = () => {
+    const [gameType, setGameType] = useState<GameType>(localGameType);
+
     return (
         <div id="lobby">
             <h2>Games</h2>
+            <GameTypeSelect gameType={gameType} setGameType={setGameType} />
             <Link className="nav-link" to="/game/new">
                 New Game
             </Link>
             <br />
             <br />
             <Suspense fallback={<GameLoadingList />}>
-                <GameList />
+                <GameList gameType={gameType} />
             </Suspense>
         </div>
     );
 };
 
-export const GameList = () => {
+export const GameList = ({ gameType }: { gameType: GameType }) => {
     const { pGames } = useLoaderData<{ pGames: Promise<GameModel[]> }>();
     const games = use(pGames);
+
+    const joinableGames = games
+        .filter((game) => {
+            if (gameType === localGameType) {
+                return game.gameType === localGameType;
+            }
+
+            return game.gameType === onlineGameType && game.players.length < 2;
+        })
+        .sort((a, b) => a.id! - b.id!);
+
     return (
         <div id="game-list">
-            {games.map((game) => (
+            {joinableGames.map((game) => (
                 <GameCard key={game.id} game={game} />
             ))}
         </div>

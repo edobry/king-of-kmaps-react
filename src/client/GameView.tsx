@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, Fragment } from "react";
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, positionsEqual } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, positionsEqual, localGameType } from '../domain/game';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
 import { useOptimisticAction } from '../util/useOptimisticAction';
@@ -161,6 +161,9 @@ function GameView() {
     const { game: initialGame } = useLoaderData<{ game: GameModel }>();
 
     const [game, setGame] = React.useState(initialGame);
+
+    const gameStarted = game.gameType === localGameType && game.players.length === 2;
+
     const { selected, clearSelection, toggleSelection } = useSelection();
     const { executeAction, isPending } = useOptimisticAction(setGame, () => game);
     const { isVisible, fadeState } = useFadeLoading(isPending);
@@ -236,29 +239,42 @@ function GameView() {
 
     return (
         <>
-            <Link className="nav-link" to="/">{"<"} Home</Link>
-
-            <GameInfo game={game} isPending={isPending} />
-            <GameControls
-                game={game}
-                selectedCount={selected.length}
-                onRandomizeBoard={handleRandomizeBoard}
-                onMakeGroup={makeGroup}
-                isPending={isPending}
-            />
-            <div id="board">
-                {game.board.map((_, zPos) => (
-                    <Grid
-                        key={`grid-${zPos}`}
-                        zPos={zPos}
-                        game={game}
-                        selected={selectedMap}
-                        cellClick={cellClick}
-                        isPending={isVisible}
-                        fadeState={fadeState}
-                    />
-                ))}
+            <div id="home-link">
+                <Link className="nav-link" to="/">
+                    {"<"} Home
+                </Link>
             </div>
+
+            {!gameStarted && (
+                <>
+                    <div id="waiting">Waiting for other player to join...</div>
+                </>
+            )}
+            {gameStarted && (
+                <>
+                    <GameInfo game={game} isPending={isPending} />
+                    <GameControls
+                        game={game}
+                        selectedCount={selected.length}
+                        onRandomizeBoard={handleRandomizeBoard}
+                        onMakeGroup={makeGroup}
+                        isPending={isPending}
+                    />
+                    <div id="board">
+                        {game.board.map((_, zPos) => (
+                            <Grid
+                                key={`grid-${zPos}`}
+                                zPos={zPos}
+                                game={game}
+                                selected={selectedMap}
+                                cellClick={cellClick}
+                                isPending={isVisible}
+                                fadeState={fadeState}
+                            />
+                        ))}
+                    </div>
+                </>
+            )}
         </>
     );
 }

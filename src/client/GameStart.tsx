@@ -1,6 +1,4 @@
-import { Suspense } from "react";
 import { Outlet } from "react-router";
-import { GameCard } from "./GameLobby";
 
 export default function GameStart() {
     return (
