@@ -79,6 +79,7 @@ router.post("/", async (req: express.Request, res: express.Response) => {
         players: body.players,
         phase: body.phase,
         currentTurn: body.currentTurn,
+        gameType: body.gameType,
     });
 
     await gameDb.setGame(gameModel);

@@ -34,10 +34,15 @@ export type Position = Dimensions;
 
 export type GameUpdate = Unary<GameModel>;
 
+export const localGameType: GameType = "local";
+export const onlineGameType: GameType = "online";
+export type GameType = "local" | "online";
+
 export type GameOptions = {
     players?: string[];
     phase?: Phase;
     currentTurn?: Player;
+    gameType?: GameType;
 };
 
 export type GameInfo = {
@@ -84,6 +89,7 @@ export const isValidGroupSelection = (game: GameModel, selected: Position[]): bo
 
 export class GameModel {
     id?: number;
+    gameType: GameType;
     players: string[];
     phase: Phase;
     moveCounter: number;
@@ -94,6 +100,7 @@ export class GameModel {
 
     constructor(gameRecord: InsertGame) {
         this.id = gameRecord.id ?? undefined;
+        this.gameType = gameRecord.gameType as GameType;
 
         this.info = computeGameInfo(gameRecord.numVars);
 
@@ -101,7 +108,10 @@ export class GameModel {
         this.board = gameRecord.board ?? makeBoard(this.info.dimensions);
         this.phase = gameRecord.phase as Phase;
         this.moveCounter = gameRecord.moveCounter;
-        this.players = [gameRecord.player1, gameRecord.player2];
+        this.players = [gameRecord.player1];
+        if (gameRecord.player2) {
+            this.players.push(gameRecord.player2);
+        }
 
         this.scoring = computeScoringState(
             gameRecord.scoring_groups ?? { 0: [], 1: [] }
@@ -110,10 +120,11 @@ export class GameModel {
 
     static initGame(
         numVars: number,
-        { players = [], phase = placePhase, currentTurn = 1 }: GameOptions = {}
+        { players = [], phase = placePhase, currentTurn = 1, gameType = localGameType }: GameOptions = {}
     ): GameModel {
         return new GameModel({
             numVars,
+            gameType,
             player1: players[0],
             player2: players[1],
             phase,
@@ -126,6 +137,7 @@ export class GameModel {
     toRecord(): InsertGame {
         return {
             id: this.id,
+            gameType: this.gameType,
             currentTurn: this.currentTurn,
             board: this.board,
             phase: this.phase,
@@ -238,7 +250,7 @@ superjson.registerCustom<GameModel, string>(
         serialize: (v) => superjson.stringify(v.toRecord()),
         deserialize: (v) => new GameModel(superjson.parse(v) as SelectGame),
     },
-    "game.js"
+    "game.ts"
 );
 
 // export class GameModelInterface implements GameInterface {
