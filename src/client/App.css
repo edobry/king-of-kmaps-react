@@ -8,6 +8,24 @@ h1 {
 text-align: center;
 }
 
+#home {
+  margin-bottom: 5px;
+  display: inline-block;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: bold;
+  border: 1px solid rgb(39, 129, 39);
+  padding: 10px 20px;
+  border-radius: 5px;
+  color: rgb(39, 129, 39);
+  text-align: center;
+}
+
+#home:hover {
+  background-color: rgb(59, 83, 59);
+  color: white;
+}
+
 #lobby {
     margin-top: 20px;
     margin-bottom: 20px;

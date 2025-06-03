@@ -6,7 +6,7 @@ import { isSelected } from '../domain/grid';
 import { useOptimisticAction } from '../util/useOptimisticAction';
 import { useFadeLoading } from '../util/useFadeLoading';
 import api from "./api";
-import { useLoaderData, useNavigate } from "react-router";
+import { Link, useLoaderData, useNavigate } from "react-router";
 
 const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
@@ -238,7 +238,7 @@ function GameView() {
 
     return (
         <>
-            <button id="home" onClick={() => navigate("/")}>Home</button>
+            <Link id="home" to="/">{"<"} Home</Link>
 
             <GameInfo game={game} isPending={isPending} />
             <GameControls
