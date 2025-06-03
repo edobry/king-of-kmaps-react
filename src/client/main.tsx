@@ -7,7 +7,7 @@ import GameView from './GameView';
 import api from './api';    
 import NewGame from './NewGame';
 import GameStart from './GameStart';
-import { GameList } from './GameList';
+import { GameLobby } from './GameLobby';
 import './index.css'
 
 const router = createBrowserRouter([
@@ -21,17 +21,14 @@ const router = createBrowserRouter([
                 children: [
                     {
                         path: "",
-                        Component: GameList,
+                        Component: GameLobby,
+                        loader: () => ({ pGames: api.getGames() }),
                     },
                     {
                         path: "game/new",
                         Component: NewGame,
                     },
                 ],
-            },
-            {
-                path: "game/new",
-                Component: NewGame,
             },
             {
                 path: "game/:gameId",

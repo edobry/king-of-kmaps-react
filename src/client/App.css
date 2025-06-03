@@ -19,6 +19,7 @@ text-align: center;
   border-radius: 5px;
   color: rgb(39, 129, 39);
   text-align: center;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
 
 .nav-link:hover {
@@ -45,7 +46,7 @@ text-align: center;
     display: block;
 }
 
-.game-list {
+#game-list {
   list-style-type: none;
   padding: 0;
   margin-bottom: 20px;
@@ -54,7 +55,7 @@ text-align: center;
   gap: 10px;
 }
 
-.game-list a {
+.game-card {
   cursor: pointer;
   padding: 20px;
   border-radius: 5px;
@@ -62,9 +63,15 @@ text-align: center;
   text-align: center;
   text-decoration: none;
   color: white;
+  transition: background-color 0.2s ease-in-out;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-.game-list a:hover {
+.game-card:hover {
   background-color: #6e6e6e;
   color: white;
 }
