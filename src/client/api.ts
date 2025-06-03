@@ -42,10 +42,10 @@ class RemoteGameInterface implements GameInterface {
         }
     }
 
-    async initGame(numVars: number, { players = [] }: GameOptions = {}) {
+    async initGame(numVars: number, gameOptions: GameOptions = {}) {
         return superParse<GameModel>(
             await this.doFetch("/game", "POST", {
-                body: JSON.stringify({ numVars, players }),
+                body: JSON.stringify({ numVars, ...gameOptions }),
             })
         );
     }
