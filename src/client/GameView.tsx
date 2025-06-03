@@ -6,7 +6,7 @@ import { isSelected } from '../domain/grid';
 import { useOptimisticAction } from '../util/useOptimisticAction';
 import { useFadeLoading } from '../util/useFadeLoading';
 import api from "./api";
-import { Link, useLoaderData, useNavigate } from "react-router";
+import { Link, useLoaderData } from "react-router";
 
 const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
@@ -119,7 +119,6 @@ const Winner = ({ game }: { game: GameModel }) => {
     );
 };
 
-// Simple hook for selection state
 const useSelection = () => {
     const [selected, setSelected] = React.useState<Position[]>([]);
 
@@ -160,7 +159,6 @@ const useSelection = () => {
 
 function GameView() {
     const { game: initialGame } = useLoaderData<{ game: GameModel }>();
-    const navigate = useNavigate();
 
     const [game, setGame] = React.useState(initialGame);
     const { selected, clearSelection, toggleSelection } = useSelection();
@@ -238,7 +236,7 @@ function GameView() {
 
     return (
         <>
-            <Link id="home" to="/">{"<"} Home</Link>
+            <Link className="nav-link" to="/">{"<"} Home</Link>
 
             <GameInfo game={game} isPending={isPending} />
             <GameControls

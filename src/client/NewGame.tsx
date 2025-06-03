@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 import api from "./api";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
@@ -30,7 +30,8 @@ export default function NewGame() {
         []
     );
 
-    return (
+    return (<>
+        <Link className="nav-link" to="/">{"<"} Continue Game</Link>
         <div id="game-inputs">
             <b>Number of Variables:</b>{" "}
             <input
@@ -53,5 +54,6 @@ export default function NewGame() {
             </div>
             <button onClick={startGame}>Start Game</button>
         </div>
+        </>
     );
 }

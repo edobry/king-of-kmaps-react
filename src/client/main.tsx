@@ -7,6 +7,7 @@ import GameView from './GameView';
 import api from './api';    
 import NewGame from './NewGame';
 import GameStart from './GameStart';
+import { GameList } from './GameList';
 import './index.css'
 
 const router = createBrowserRouter([
@@ -17,6 +18,16 @@ const router = createBrowserRouter([
             {
                 path: "/",
                 Component: GameStart,
+                children: [
+                    {
+                        path: "",
+                        Component: GameList,
+                    },
+                    {
+                        path: "game/new",
+                        Component: NewGame,
+                    },
+                ],
             },
             {
                 path: "game/new",

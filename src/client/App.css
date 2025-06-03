@@ -8,8 +8,8 @@ h1 {
 text-align: center;
 }
 
-#home {
-  margin-bottom: 5px;
+.nav-link {
+  margin: 0 auto 10px auto;
   display: inline-block;
   text-decoration: none;
   font-size: 20px;
@@ -21,15 +21,23 @@ text-align: center;
   text-align: center;
 }
 
-#home:hover {
+.nav-link:hover {
   background-color: rgb(59, 83, 59);
   color: white;
 }
 
 #lobby {
-    margin-top: 20px;
-    margin-bottom: 20px;
     text-align: center;
+    width: 80%;
+}
+
+#game-start {
+    margin: 30px auto;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 #game-start button {
@@ -46,16 +54,19 @@ text-align: center;
   gap: 10px;
 }
 
-.game-list li {
+.game-list a {
   cursor: pointer;
   padding: 20px;
   border-radius: 5px;
   background-color: #494949;
   text-align: center;
+  text-decoration: none;
+  color: white;
 }
 
-.game-list li:hover {
+.game-list a:hover {
   background-color: #6e6e6e;
+  color: white;
 }
 
 #main {
@@ -64,20 +75,13 @@ text-align: center;
   width: 80%;
 }
 
-#game-start {
-  margin: 30px auto;
-  width: 50%;
-}
-
 #intro {
     width: 90%;
-    margin: 30px auto;
     text-align: center;
 }
 
 #game-rules {
     width: 100%;
-    margin-top: 50px;
 }
 
 #game-rules h2 {
