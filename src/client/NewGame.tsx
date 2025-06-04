@@ -1,19 +1,17 @@
 import { useCallback, useState } from "react";
 
 import api from "./api";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { localGameType, type GameType } from "../domain/game";
 
 type ChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
-export default function NewGame({ gameType }: { gameType: GameType }) {
+export default function NewGame({ gameType, cancelStartingGame }: { gameType: GameType, cancelStartingGame: () => void }) {
     const navigate = useNavigate();
 
     const [numVars, setNumVars] = useState(5);
 
-    const [players, setPlayers] = useState<string[]>([]);
-
-    const numPlayers = gameType === localGameType ? 2 : 1;
+    const [players, setPlayers] = useState<string[]>(gameType === localGameType ? ["", ""] : []);
 
     const startGame = useCallback(async () => {
         const gameData = await api.initGame(numVars, {
@@ -29,17 +27,17 @@ export default function NewGame({ gameType }: { gameType: GameType }) {
                 setPlayers(prev => {
                     const newPlayers = [...prev];
                     newPlayers[index] = e.target.value.trim();
-                    return newPlayers.slice(0, numPlayers);
+                    return newPlayers;
                 });
             },
-        [numPlayers]
+        []
     );
 
     return (
         <>
-            <Link className="nav-link" to="/">
+            <button className="nav-link" onClick={cancelStartingGame}>
                 {"<"} Continue Game
-            </Link>
+            </button>
             <div id="game-inputs">
                 <br />
                 <b>Number of Variables:</b>{" "}
@@ -50,19 +48,21 @@ export default function NewGame({ gameType }: { gameType: GameType }) {
                     value={numVars}
                     onChange={(e) => setNumVars(parseInt(e.target.value))}
                 />
-                <div id="player-select">
-                    <b>{gameType === localGameType ? "Players:" : "Your Name:"}</b>
-                    {Array.from({ length: numPlayers }, (_, index) => (
+                {gameType === localGameType && (
+                    <div id="player-select">
+                        <b>Players:</b>
+                        {Array.from({ length: 2 }, (_, index) => (
                         <input
                             type="text"
                             key={index}
                             onChange={setPlayer(index)}
                             placeholder={`Player ${index + 1}`}
                             defaultValue={players[index] ?? ""}
-                        />
-                    ))}
-                </div>
-                <button onClick={startGame}>Start Game</button>
+                            />
+                        ))}
+                    </div>
+                )}
+                <button className="nav-link" onClick={startGame}>Start Game</button>
             </div>
         </>
     );

@@ -1,7 +1,6 @@
 import type { InsertGame, SelectGame } from "../server/schema";
 import type { Unary } from "../util/util";
 import { isValidRectangle } from "./adjacency";
-import type { GameInterface } from "./state";
 import superjson from "superjson";
 import { create } from "mutative";
 
@@ -108,7 +107,10 @@ export class GameModel {
         this.board = gameRecord.board ?? makeBoard(this.info.dimensions);
         this.phase = gameRecord.phase as Phase;
         this.moveCounter = gameRecord.moveCounter;
-        this.players = [gameRecord.player1];
+        this.players = [];
+        if (gameRecord.player1) {
+            this.players.push(gameRecord.player1);
+        }
         if (gameRecord.player2) {
             this.players.push(gameRecord.player2);
         }

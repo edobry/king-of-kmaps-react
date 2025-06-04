@@ -1,23 +1,30 @@
-import { Link, useLoaderData, useNavigate } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 import { GameModel, localGameType, onlineGameType, type GameType } from "../domain/game";
 import { Suspense, use, useState } from "react";
 import { GameTypeSelect } from "./GameTypeSelect";
+import NewGame from "./NewGame";
 
 export const GameLobby = () => {
     const [gameType, setGameType] = useState<GameType>(localGameType);
+
+    const [startingGame, setStartingGame] = useState(false);
 
     return (
         <div id="lobby">
             <h2>Games</h2>
             <GameTypeSelect gameType={gameType} setGameType={setGameType} />
-            <Link className="nav-link" to="/game/new">
-                New Game
-            </Link>
-            <br />
-            <br />
-            <Suspense fallback={<GameLoadingList />}>
-                <GameList gameType={gameType} />
-            </Suspense>
+            {startingGame ? (
+                <NewGame gameType={gameType} cancelStartingGame={() => setStartingGame(false)} />
+            ): (
+                <>
+                    <button className="nav-link" onClick={() => setStartingGame(true)}>New Game</button>
+                    <br />
+                    <br />
+                    <Suspense fallback={<GameLoadingList />}>
+                        <GameList gameType={gameType} />
+                    </Suspense>
+                </>
+            )}
         </div>
     );
 };

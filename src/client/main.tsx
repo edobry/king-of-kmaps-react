@@ -5,7 +5,6 @@ import { createBrowserRouter, redirect, RouterProvider } from "react-router";
 import App from './App'
 import GameView from './GameView';
 import api from './api';    
-import NewGame from './NewGame';
 import GameStart from './GameStart';
 import { GameLobby } from './GameLobby';
 import './index.css'
@@ -23,11 +22,7 @@ const router = createBrowserRouter([
                         path: "",
                         Component: GameLobby,
                         loader: () => ({ pGames: api.getGames() }),
-                    },
-                    {
-                        path: "game/new",
-                        Component: NewGame,
-                    },
+                    }
                 ],
             },
             {
