@@ -9,7 +9,7 @@ export const gamesTable = pgTable("games", {
     id: serial("id").primaryKey(),
     gameType: gameTypeEnum("game_type").default(localGameType).notNull(),
     numVars: integer("num_vars").notNull(),
-    player1: text("player_1").notNull(),
+    player1: text("player_1"),
     player2: text("player_2"),
     phase: phaseEnum("phase").default(placePhase).notNull(),
     currentTurn: integer("current_turn").notNull(),

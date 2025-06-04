@@ -7,6 +7,9 @@ import { useOptimisticAction } from '../util/useOptimisticAction';
 import { useFadeLoading } from '../util/useFadeLoading';
 import api from "./api";
 import { Link, useLoaderData } from "react-router";
+import GameSocketClient from "./socket";
+
+const gameSocketClient = new GameSocketClient();
 
 const getPlayerName = (game: GameModel, player: Player) =>
     game.players[player]
@@ -160,6 +163,8 @@ const useSelection = () => {
 function GameView() {
     const { game: initialGame } = useLoaderData<{ game: GameModel }>();
 
+    const [playerName, setPlayerName] = React.useState("");
+
     const [game, setGame] = React.useState(initialGame);
 
     const gameStarted = game.gameType === localGameType && game.players.length === 2;
@@ -237,6 +242,20 @@ function GameView() {
         return undefined;
     }, [game.phase, isPending, handleMove, makeSelection]);
 
+    const handleJoinGame = useCallback(async () => {
+        if (!game.id || !playerName.trim()) return;
+        
+        try {
+            const newGame = await gameSocketClient.connect(game.id, playerName.trim());
+            setGame(newGame);
+            
+            console.log("Successfully joined game and connected socket");
+        } catch (error) {
+            console.error("Failed to join game:", error);
+            // alert("Failed to join game: " + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    }, [playerName, game.id, setGame]);
+
     return (
         <>
             <div id="home-link">
@@ -245,10 +264,16 @@ function GameView() {
                 </Link>
             </div>
 
-            {!gameStarted && (
+            {!gameStarted && game.players.length == 1 && (
                 <>
                     <div id="waiting">Waiting for other player to join...</div>
                 </>
+            )}
+            {!gameStarted && game.players.length == 0 && (
+                <div id="join-game">
+                    <label>Your name: <input type="text" placeholder="Player 1" value={playerName} onChange={e => setPlayerName(e.target.value)} /></label>
+                    <button className="nav-link" onClick={handleJoinGame}>Join game</button>
+                </div>
             )}
             {gameStarted && (
                 <>

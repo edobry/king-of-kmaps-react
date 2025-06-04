@@ -108,10 +108,10 @@ export class GameModel {
         this.phase = gameRecord.phase as Phase;
         this.moveCounter = gameRecord.moveCounter;
         this.players = [];
-        if (gameRecord.player1) {
+        if (gameRecord.player1 && gameRecord.player1.length > 0) {
             this.players.push(gameRecord.player1);
         }
-        if (gameRecord.player2) {
+        if (gameRecord.player2 && gameRecord.player2.length > 0) {
             this.players.push(gameRecord.player2);
         }
 

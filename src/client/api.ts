@@ -69,10 +69,18 @@ class RemoteGameInterface implements GameInterface {
             })
         );
     }
+    async joinGame(gameId: number, playerName: string) {
+        return superParse<{ success: boolean; game: GameModel; playerName: string }>(
+            await this.doFetch(`/game/${gameId}/join`, "POST", {
+                body: JSON.stringify({ name: playerName }),
+            })
+        );
+    }
+
     async resetGame(gameId: number) {
         this.doFetch(`/game/${gameId}`, "DELETE");
     }
 }
 
-const baseUrl = "http://localhost:3000";
-export default new RemoteGameInterface(baseUrl);
+export const API_BASE_URL = "http://localhost:3000";
+export default new RemoteGameInterface(API_BASE_URL);

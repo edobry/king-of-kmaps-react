@@ -15,6 +15,13 @@
       "when": 1748987879653,
       "tag": "0001_mixed_firedrake",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748992856331,
+      "tag": "0002_mushy_energizer",
+      "breakpoints": true
     }
   ]
 }

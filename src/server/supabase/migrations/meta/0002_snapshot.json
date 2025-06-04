@@ -1,0 +1,114 @@
+{
+  "id": "211e2e2a-fb1c-4d7c-aa8b-5aa917741f8f",
+  "prevId": "a9589098-8466-4c9b-8c57-23cef48859ac",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.games": {
+      "name": "games",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "game_type": {
+          "name": "game_type",
+          "type": "game_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'local'"
+        },
+        "num_vars": {
+          "name": "num_vars",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "player_1": {
+          "name": "player_1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "player_2": {
+          "name": "player_2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phase": {
+          "name": "phase",
+          "type": "phase",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Place'"
+        },
+        "current_turn": {
+          "name": "current_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "board": {
+          "name": "board",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "move_counter": {
+          "name": "move_counter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scoring_groups": {
+          "name": "scoring_groups",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.game_type": {
+      "name": "game_type",
+      "schema": "public",
+      "values": [
+        "local",
+        "online"
+      ]
+    },
+    "public.phase": {
+      "name": "phase",
+      "schema": "public",
+      "values": [
+        "Place",
+        "Score",
+        "End"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
