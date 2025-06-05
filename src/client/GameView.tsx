@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, Fragment } from "react";
+import React, { useCallback, useMemo, Fragment, useEffect } from "react";
 import Grid, { type CellClick } from './Grid';
-import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, positionsEqual, localGameType } from '../domain/game';
+import { placePhase, scorePhase, type Position, endPhase, type Player, GameModel, makeCellId, isValidMove, positionsEqual, onlineGameType } from '../domain/game';
 import { getAdjacencies } from '../domain/adjacency';
 import { isSelected } from '../domain/grid';
-import { useOptimisticAction } from '../util/useOptimisticAction';
-import { useFadeLoading } from '../util/useFadeLoading';
+import { useOptimisticAction } from './util/useOptimisticAction';
+import { useFadeLoading } from './util/useFadeLoading';
 import api from "./api";
 import { Link, useLoaderData } from "react-router";
 import GameSocketClient from "./socket";
@@ -22,19 +22,21 @@ const GameControls = ({
     onRandomizeBoard,
     onMakeGroup,
     isPending = false,
+    enabled = true,
 }: {
     game: GameModel;
     selectedCount: number;
     onRandomizeBoard: () => void;
     onMakeGroup: () => void;
     isPending?: boolean;
+    enabled?: boolean;
 }) => (
     <div id="controls">
         {game.phase === placePhase && (
             <button
                 id="randomizeBoard"
                 onClick={onRandomizeBoard}
-                disabled={isPending}
+                disabled={isPending || !enabled}
             >
                 Randomize
             </button>
@@ -43,7 +45,7 @@ const GameControls = ({
             <button
                 id="groupSelected"
                 onClick={onMakeGroup}
-                disabled={selectedCount === 0 || isPending}
+                disabled={selectedCount === 0 || isPending || !enabled}
             >
                 Group
             </button>
@@ -53,10 +55,12 @@ const GameControls = ({
 
 const GameInfo = ({
     game, 
-    isPending = false
+    isPending = false,
+    playerNum,
 }: {
     game: GameModel;
     isPending?: boolean;
+    playerNum?: number;
 }) => (
     <div id="info">
         <b>Variables:</b> {game.info.numVars} ({Object.entries(game.info.vars).reverse().map(([key, value]) =>
@@ -160,23 +164,78 @@ const useSelection = () => {
     return { selected, clearSelection, toggleSelection };
 };
 
+function JoinGame({
+    gameId,
+    setGame,
+    setPlayerNum,
+}: {
+    gameId: number;
+    setGame: (game: GameModel) => void;
+    setPlayerNum: (playerNum: number) => void;
+}) {
+    const [playerName, setPlayerName] = React.useState("");
+
+    const handleJoinGame = useCallback(async () => {
+        if (!playerName) return;
+
+        try {
+            const newGame = await gameSocketClient.connect(
+                gameId,
+                playerName
+            );
+            setGame(newGame.game);
+            setPlayerNum(newGame.playerNum);
+
+            console.log("Successfully joined game and connected socket");
+        } catch (error) {
+            console.error("Failed to join game:", error);
+            alert(
+                "Failed to join game: " +
+                    (error instanceof Error ? error.message : "Unknown error")
+            );
+        }
+    }, [playerName, gameId, setGame, setPlayerNum]);
+
+    return (<>
+        <div id="join-game">
+            <label>
+                Your name:
+                <input
+                    type="text"
+                    placeholder="Player 1"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value.trim())}
+                />
+            </label>
+            <button
+                className="nav-link"
+                onClick={handleJoinGame}
+                disabled={!playerName}
+            >
+                Join game
+            </button>
+        </div>
+    </>);
+}
+
 function GameView() {
     const { game: initialGame } = useLoaderData<{ game: GameModel }>();
 
-    const [playerName, setPlayerName] = React.useState("");
-
     const [game, setGame] = React.useState(initialGame);
 
-    const gameStarted = game.gameType === localGameType && game.players.length === 2;
+    const [gameJoined, setGameJoined] = React.useState(false);
+
+    const [playerNum, setPlayerNum] = React.useState<number | undefined>(undefined);
+
+    const gameStarted = game && game.gameType === onlineGameType && game.players.length === 2;
 
     const { selected, clearSelection, toggleSelection } = useSelection();
     const { executeAction, isPending } = useOptimisticAction(setGame, () => game);
     const { isVisible, fadeState } = useFadeLoading(isPending);
 
-    // Update local game state when prop changes
-    React.useEffect(() => {
-        setGame(initialGame);
-    }, [initialGame]);
+    // React.useEffect(() => {
+    //     setGame(initialGame);
+    // }, [initialGame]);
 
     const makeSelection = useCallback((pos: Position) => {
         // Only allow selection in score phase for owned cells that aren't grouped
@@ -234,27 +293,36 @@ function GameView() {
 
     // Determine cell click handler based on game phase
     const cellClick = useMemo<CellClick | undefined>(() => {
+        if (!game) return undefined;
+        
         if (game.phase === endPhase || isPending) return undefined;
+
+        if (game.currentTurn !== playerNum) return undefined;
         
         if (game.phase === placePhase) return handleMove;
         if (game.phase === scorePhase) return (pos: Position) => () => makeSelection(pos);
         
         return undefined;
-    }, [game.phase, isPending, handleMove, makeSelection]);
+    }, [game, isPending, handleMove, makeSelection, playerNum]);
 
-    const handleJoinGame = useCallback(async () => {
-        if (!game.id || !playerName.trim()) return;
-        
-        try {
-            const newGame = await gameSocketClient.connect(game.id, playerName.trim());
-            setGame(newGame);
-            
-            console.log("Successfully joined game and connected socket");
-        } catch (error) {
-            console.error("Failed to join game:", error);
-            // alert("Failed to join game: " + (error instanceof Error ? error.message : 'Unknown error'));
-        }
-    }, [playerName, game.id, setGame]);
+
+    useEffect(() => {
+        if(!gameJoined) return;
+
+        gameSocketClient.onJoined((updatedGame, joinedPlayerName) => {
+            console.log(`${joinedPlayerName} joined game!`);
+            setGame(updatedGame);
+        });
+
+        gameSocketClient.onUpdated((updatedGame) => {
+            console.log(`Game updated: ${updatedGame.id} ${updatedGame.currentTurn}`);
+            setGame(updatedGame);
+        });
+
+        return () => {
+            gameSocketClient.disconnect();
+        };
+    }, [gameJoined]);
 
     return (
         <>
@@ -263,27 +331,27 @@ function GameView() {
                     {"<"} Home
                 </Link>
             </div>
-
-            {!gameStarted && game.players.length == 1 && (
+            {!gameStarted && game.players.length == 1 && gameJoined && (
                 <>
                     <div id="waiting">Waiting for other player to join...</div>
                 </>
             )}
-            {!gameStarted && game.players.length == 0 && (
-                <div id="join-game">
-                    <label>Your name: <input type="text" placeholder="Player 1" value={playerName} onChange={e => setPlayerName(e.target.value)} /></label>
-                    <button className="nav-link" onClick={handleJoinGame}>Join game</button>
-                </div>
+            {!gameStarted && game.players.length < 2 && !gameJoined && (
+                <JoinGame gameId={game.id!} setGame={(game) => {
+                    setGame(game);
+                    setGameJoined(true);
+                }} setPlayerNum={setPlayerNum} />
             )}
             {gameStarted && (
                 <>
-                    <GameInfo game={game} isPending={isPending} />
+                    <GameInfo game={game} isPending={isPending} playerNum={playerNum} />
                     <GameControls
                         game={game}
                         selectedCount={selected.length}
                         onRandomizeBoard={handleRandomizeBoard}
                         onMakeGroup={makeGroup}
                         isPending={isPending}
+                        enabled={playerNum === game.currentTurn}
                     />
                     <div id="board">
                         {game.board.map((_, zPos) => (

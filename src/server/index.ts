@@ -4,6 +4,7 @@ import gameRoutes from "./routes";
 import morganBody from "morgan-body";
 import cors from "cors";
 import { Server } from "socket.io";
+import { GAME_NAMESPACE } from "./constants";
 // @ts-ignore - No types available for socket.io-logger
 import socketIoLogger from "socket.io-logger";
 
@@ -21,7 +22,7 @@ morganBody(app, {
     prettify: true
 });
 
-app.use("/game", gameRoutes.httpRouter);
+app.use(`/${GAME_NAMESPACE}`, gameRoutes.httpRouter);
 
 app.use((_: express.Request, res: express.Response) => {
     throw new NotFoundError("invalid route");
@@ -90,7 +91,7 @@ io.use(socketLogger);
 
 app.set("socketio", io);
 
-const gameNamespace = io.of("/game");
+const gameNamespace = io.of(GAME_NAMESPACE);
 
 gameRoutes.socketRouter(gameNamespace);
 

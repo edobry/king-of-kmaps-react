@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { GameModel } from '../domain/game';
+import { GameModel } from '../../domain/game';
 
 // Hook for optimistic actions with immediate UI updates
 export const useOptimisticAction = (setNewGame: (game: GameModel) => void, getCurrentGame: () => GameModel) => {
